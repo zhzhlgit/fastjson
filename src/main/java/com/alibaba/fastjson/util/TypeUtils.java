@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 /**
  * @author wenshao[szujobs@hotmail.com]
  */
+@Deprecated
 public class TypeUtils {
 
     private static final Pattern NUMBER_WITH_TRAILING_ZEROS_PATTERN = Pattern.compile("\\.0*$");

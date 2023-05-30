@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentMap;
  * This syntax cannot be used to create type literals that have wildcard
  * parameters, such as {@code Class<?>} or {@code List<? extends CharSequence>}.
  */
+@Deprecated
 public class TypeReference<T> {
     static ConcurrentMap<Type, Type> classTypeCache
             = new ConcurrentHashMap<Type, Type>(16, 0.75f, 1);

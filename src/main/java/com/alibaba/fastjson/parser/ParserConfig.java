@@ -15,25 +15,16 @@
  */
 package com.alibaba.fastjson.parser;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.parser.deserializer.ObjectDeserializer;
-
-import java.lang.reflect.Type;
-import java.util.IdentityHashMap;
-
 /**
  * @author wenshao[szujobs@hotmail.com]
  */
+@Deprecated
 public class ParserConfig {
     /**
      * @since 1.2.68
      */
     public interface AutoTypeCheckHandler {
         Class<?> handler(String typeName, Class<?> expectClass, int features);
-    }
-
-    public ObjectDeserializer get(Type type) {
-        return null;
     }
 
 }

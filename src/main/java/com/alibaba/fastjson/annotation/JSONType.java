@@ -1,21 +1,20 @@
 package com.alibaba.fastjson.annotation;
 
+import com.alibaba.fastjson.parser.Feature;
+import com.alibaba.fastjson.parser.ParserConfig;
+import com.alibaba.fastjson.serializer.SerializerFeature;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import com.alibaba.fastjson.PropertyNamingStrategy;
-import com.alibaba.fastjson.parser.Feature;
-import com.alibaba.fastjson.parser.ParserConfig;
-import com.alibaba.fastjson.serializer.SerializeFilter;
-import com.alibaba.fastjson.serializer.SerializerFeature;
-
 /**
  * @author wenshao[szujobs@hotmail.com]
  */
+@Deprecated
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.TYPE })
+@Target({ElementType.TYPE})
 public @interface JSONType {
 
     boolean asm() default true;
@@ -30,14 +29,15 @@ public @interface JSONType {
     String[] ignores() default {};
 
     SerializerFeature[] serialzeFeatures() default {};
+
     Feature[] parseFeatures() default {};
-    
+
     boolean alphabetic() default true;
-    
+
     Class<?> mappingTo() default Void.class;
-    
+
     Class<?> builder() default Void.class;
-    
+
     /**
      * @since 1.2.11
      */
@@ -47,17 +47,17 @@ public @interface JSONType {
      * @since 1.2.32
      */
     String typeKey() default "";
-    
+
     /**
      * @since 1.2.11
      */
-    Class<?>[] seeAlso() default{};
-    
+    Class<?>[] seeAlso() default {};
+
     /**
      * @since 1.2.14
      */
     Class<?> serializer() default Void.class;
-    
+
     /**
      * @since 1.2.14
      */
@@ -65,16 +65,16 @@ public @interface JSONType {
 
     boolean serializeEnumAsJavaBean() default false;
 
-    PropertyNamingStrategy naming() default PropertyNamingStrategy.NeverUseThisValueExceptDefaultValue;
+//    PropertyNamingStrategy naming() default PropertyNamingStrategy.NeverUseThisValueExceptDefaultValue;
 
     /**
      * @since 1.2.49
      */
-    Class<? extends SerializeFilter>[] serialzeFilters() default {};
+//    Class<? extends SerializeFilter>[] serialzeFilters() default {};
 
     /**
-     * @since 1.2.71
      * @return
+     * @since 1.2.71
      */
     Class<? extends ParserConfig.AutoTypeCheckHandler> autoTypeCheckHandler() default ParserConfig.AutoTypeCheckHandler.class;
 }

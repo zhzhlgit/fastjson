@@ -10,6 +10,7 @@ import java.lang.annotation.Target;
  * @since 1.2.8
  *
  */
+@Deprecated
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE })
 public @interface JSONPOJOBuilder {

@@ -4,6 +4,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 
+@Deprecated
 public class ParameterizedTypeImpl implements ParameterizedType {
 
     private final Type[] actualTypeArguments;

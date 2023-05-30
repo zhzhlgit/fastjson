@@ -38,6 +38,7 @@ import java.util.*;
  *
  * @author zhzhl
  */
+@Deprecated
 public class JacksonUtil {
 
     private static final ObjectMapper OBJECT_MAPPER;

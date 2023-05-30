@@ -15,17 +15,18 @@
  */
 package com.alibaba.fastjson.annotation;
 
+import com.alibaba.fastjson.parser.Feature;
+import com.alibaba.fastjson.serializer.SerializerFeature;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import com.alibaba.fastjson.parser.Feature;
-import com.alibaba.fastjson.serializer.SerializerFeature;
-
 /**
  * @author wenshao[szujobs@hotmail.com]
  */
+@Deprecated
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER })
 public @interface JSONField {
@@ -79,11 +80,11 @@ public @interface JSONField {
      * @since 1.2.31
      */
     boolean unwrapped() default false;
-    
-	/**
-	 * Only support Object
-	 * 
-	 * @since 1.2.61
-	 */
-	String defaultValue() default "";
+
+    /**
+     * Only support Object
+     *
+     * @since 1.2.61
+     */
+    String defaultValue() default "";
 }

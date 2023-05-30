@@ -19,30 +19,31 @@ package com.alibaba.fastjson.parser;
 /**
  * @author wenshao[szujobs@hotmail.com]
  */
+@Deprecated
 public enum Feature {
     /**
-	 * 
-	 */
+     *
+     */
     AutoCloseSource,
     /**
-	 * 
-	 */
+     *
+     */
     AllowComment,
     /**
-	 * 
-	 */
+     *
+     */
     AllowUnQuotedFieldNames,
     /**
-	 * 
-	 */
+     *
+     */
     AllowSingleQuotes,
     /**
-	 * 
-	 */
+     *
+     */
     InternFieldNames,
     /**
-	 * 
-	 */
+     *
+     */
     AllowISO8601DateFormat,
 
     /**
