@@ -1,5 +1,7 @@
 package com.alibaba.fastjson;
 
+import com.alibaba.fastjson.exception.JacksonException;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -59,7 +61,7 @@ public abstract class JSONValidator implements Cloneable, Closeable {
             return validateResult;
         }
 
-        for (;;) {
+        for (; ; ) {
             if (!any()) {
                 validateResult = false;
                 return false;
@@ -107,7 +109,7 @@ public abstract class JSONValidator implements Cloneable, Closeable {
                     return true;
                 }
 
-                for (;;) {
+                for (; ; ) {
                     if (ch == '"') {
                         fieldName();
                     } else {
@@ -149,7 +151,7 @@ public abstract class JSONValidator implements Cloneable, Closeable {
                     return true;
                 }
 
-                for (;;) {
+                for (; ; ) {
                     if (!any()) {
                         return false;
                     }
@@ -162,8 +164,7 @@ public abstract class JSONValidator implements Cloneable, Closeable {
                         next();
                         type = Type.Array;
                         return true;
-                    }
-                    else {
+                    } else {
                         return false;
                     }
                 }
@@ -210,8 +211,7 @@ public abstract class JSONValidator implements Cloneable, Closeable {
 
                     if (ch >= '0' && ch <= '9') {
                         next();
-                    }
-                    else {
+                    } else {
                         return false;
                     }
 
@@ -224,7 +224,7 @@ public abstract class JSONValidator implements Cloneable, Closeable {
                 break;
             case '"':
                 next();
-                for (;;) {
+                for (; ; ) {
                     if (eof) {
                         return false;
                     }
@@ -329,8 +329,7 @@ public abstract class JSONValidator implements Cloneable, Closeable {
         return true;
     }
 
-    protected void fieldName()
-    {
+    protected void fieldName() {
         next();
         for (; ; ) {
             if (ch == '\\') {
@@ -346,19 +345,16 @@ public abstract class JSONValidator implements Cloneable, Closeable {
                 } else {
                     next();
                 }
-            }
-            else if (ch == '"') {
+            } else if (ch == '"') {
                 next();
                 break;
-            }
-            else {
+            } else {
                 next();
             }
         }
     }
 
-    protected boolean string()
-    {
+    protected boolean string() {
         next();
         for (; !eof; ) {
             if (ch == '\\') {
@@ -374,12 +370,10 @@ public abstract class JSONValidator implements Cloneable, Closeable {
                 } else {
                     next();
                 }
-            }
-            else if (ch == '"') {
+            } else if (ch == '"') {
                 next();
                 return true;
-            }
-            else {
+            } else {
                 next();
             }
         }
@@ -455,15 +449,14 @@ public abstract class JSONValidator implements Cloneable, Closeable {
                         len = is.read(buf, 0, buf.length);
                         readCount++;
                     } catch (IOException ex) {
-                        throw new JSONException("read error");
+                        throw new JacksonException("read error");
                     }
 
                     if (len > 0) {
                         ch = (char) buf[0];
                         pos = 0;
                         end = len - 1;
-                    }
-                    else if (len == -1) {
+                    } else if (len == -1) {
                         pos = 0;
                         end = 0;
                         buf = null;
@@ -475,7 +468,7 @@ public abstract class JSONValidator implements Cloneable, Closeable {
                         buf = null;
                         ch = '\0';
                         eof = true;
-                        throw new JSONException("read error");
+                        throw new JacksonException("read error");
                     }
                 }
             }
@@ -507,8 +500,7 @@ public abstract class JSONValidator implements Cloneable, Closeable {
             }
         }
 
-        protected final void fieldName()
-        {
+        protected final void fieldName() {
             for (int i = pos + 1; i < str.length(); ++i) {
                 char ch = str.charAt(i);
                 if (ch == '\\') {
@@ -536,14 +528,12 @@ public abstract class JSONValidator implements Cloneable, Closeable {
                     } else {
                         next();
                     }
-                }
-                else if (ch == '"') {
+                } else if (ch == '"') {
                     next();
                     break;
-                }
-                else if(eof){
+                } else if (eof) {
                     break;
-                }else {
+                } else {
                     next();
                 }
             }
@@ -583,15 +573,14 @@ public abstract class JSONValidator implements Cloneable, Closeable {
                         len = r.read(buf, 0, buf.length);
                         readCount++;
                     } catch (IOException ex) {
-                        throw new JSONException("read error");
+                        throw new JacksonException("read error");
                     }
 
                     if (len > 0) {
                         ch = buf[0];
                         pos = 0;
                         end = len - 1;
-                    }
-                    else if (len == -1) {
+                    } else if (len == -1) {
                         pos = 0;
                         end = 0;
                         buf = null;
@@ -603,7 +592,7 @@ public abstract class JSONValidator implements Cloneable, Closeable {
                         buf = null;
                         ch = '\0';
                         eof = true;
-                        throw new JSONException("read error");
+                        throw new JacksonException("read error");
                     }
                 }
             }

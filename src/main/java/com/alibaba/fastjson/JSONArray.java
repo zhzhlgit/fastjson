@@ -1,73 +1,72 @@
-/*
- * Copyright 1999-2017 Alibaba Group.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.alibaba.fastjson;
 
-import static com.alibaba.fastjson.util.TypeUtils.castToBigDecimal;
-import static com.alibaba.fastjson.util.TypeUtils.castToBigInteger;
-import static com.alibaba.fastjson.util.TypeUtils.castToBoolean;
-import static com.alibaba.fastjson.util.TypeUtils.castToByte;
-import static com.alibaba.fastjson.util.TypeUtils.castToDate;
-import static com.alibaba.fastjson.util.TypeUtils.castToDouble;
-import static com.alibaba.fastjson.util.TypeUtils.castToFloat;
-import static com.alibaba.fastjson.util.TypeUtils.castToInt;
-import static com.alibaba.fastjson.util.TypeUtils.castToLong;
-import static com.alibaba.fastjson.util.TypeUtils.castToShort;
-import static com.alibaba.fastjson.util.TypeUtils.castToSqlDate;
-import static com.alibaba.fastjson.util.TypeUtils.castToString;
-import static com.alibaba.fastjson.util.TypeUtils.castToTimestamp;
+import com.alibaba.fastjson.exception.JacksonException;
+import com.alibaba.fastjson.util.JacksonUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
-import com.alibaba.fastjson.parser.ParserConfig;
-import com.alibaba.fastjson.util.TypeUtils;
 
 /**
- * @author wenshao[szujobs@hotmail.com]
+ * 请使用Jackson
  */
-public class JSONArray extends JSON implements List<Object>, Cloneable, RandomAccess, Serializable {
-
-    private static final long  serialVersionUID = 1L;
-    private final List<Object> list;
+@Deprecated
+public class JSONArray extends JSON implements List<Object> {
+    private final ArrayNode _arrayNode;
+    private static final Pattern NUMBER_WITH_TRAILING_ZEROS_PATTERN = Pattern.compile("\\.0*$");
+    private static final long serialVersionUID = 7031906528012587403L;
+    private static final String DEFAULT_ZERO = "0";
     protected transient Object relatedArray;
-    protected transient Type   componentType;
+    protected transient Type componentType;
 
-    public JSONArray(){
-        this.list = new ArrayList<Object>();
+    private ObjectMapper mapper = new ObjectMapper();
+
+    public JSONArray() {
+        this(JsonNodeFactory.instance);
     }
 
-    public JSONArray(List<Object> list){
-        if (list == null){
+    public JSONArray(List<Object> list) {
+        if (list == null) {
             throw new IllegalArgumentException("list is null.");
         }
-        this.list = list;
+
+
+        List<JsonNode> collect = list.stream().map(x -> {
+            JsonNode jsonNode = mapper.valueToTree(x);
+            return jsonNode;
+        }).collect(Collectors.toList());
+        _arrayNode = new ArrayNode(JsonNodeFactory.instance, collect);
+
     }
 
-    public JSONArray(int initialCapacity){
-        this.list = new ArrayList<Object>(initialCapacity);
+    public JSONArray(JsonNodeFactory nf) {
+        _arrayNode = new ArrayNode(JsonNodeFactory.instance);
+    }
+
+    public JSONArray(JsonNodeFactory nf, int capacity) {
+        _arrayNode = new ArrayNode(nf, capacity);
+    }
+
+    public JSONArray(JsonNodeFactory nf, List<JsonNode> children) {
+        _arrayNode = new ArrayNode(nf, children);
     }
 
     /**
-     * @since 1.1.16
      * @return
+     * @since 1.1.16
      */
     public Object getRelatedArray() {
         return relatedArray;
@@ -85,421 +84,406 @@ public class JSONArray extends JSON implements List<Object>, Cloneable, RandomAc
         this.componentType = componentType;
     }
 
+    @Override
     public int size() {
-        return list.size();
+        return 0;
     }
 
+    @Override
     public boolean isEmpty() {
-        return list.isEmpty();
+        return false;
     }
 
+    @Override
     public boolean contains(Object o) {
-        return list.contains(o);
+        return false;
     }
 
+    @Override
     public Iterator<Object> iterator() {
-        return list.iterator();
+        return null;
     }
 
+    @Override
     public Object[] toArray() {
-        return list.toArray();
+        Object[] objects = new Object[_arrayNode.size()];
+        Iterator<JsonNode> iterator = _arrayNode.elements();
+        int index = 0;
+        while (iterator.hasNext()) {
+            Object o = iterator.next();
+            objects[index] = o;
+            index++;
+        }
+        return objects;
     }
 
+
+    @Override
     public <T> T[] toArray(T[] a) {
-        return list.toArray(a);
+        Object[] elementData = toArray();
+        if (a.length < _arrayNode.size())
+        // Make a new array of a's runtime type, but my contents:
+        {
+            return (T[]) Arrays.copyOf(elementData, _arrayNode.size(), a.getClass());
+        }
+        System.arraycopy(elementData, 0, a, 0, _arrayNode.size());
+        if (a.length > _arrayNode.size()) {
+            a[_arrayNode.size()] = null;
+        }
+        return a;
     }
 
-    public boolean add(Object e) {
-        return list.add(e);
+    @Override
+    public boolean add(Object o) {
+        return false;
     }
 
-    public JSONArray fluentAdd(Object e) {
-        list.add(e);
-        return this;
-    }
-
+    @Override
     public boolean remove(Object o) {
-        return list.remove(o);
+        return false;
     }
 
-    public JSONArray fluentRemove(Object o) {
-        list.remove(o);
-        return this;
-    }
-
+    @Override
     public boolean containsAll(Collection<?> c) {
-        return list.containsAll(c);
+        return false;
     }
 
+    @Override
     public boolean addAll(Collection<?> c) {
-        return list.addAll(c);
+        return false;
     }
 
-    public JSONArray fluentAddAll(Collection<?> c) {
-        list.addAll(c);
-        return this;
-    }
-
+    @Override
     public boolean addAll(int index, Collection<?> c) {
-        return list.addAll(index, c);
+        return false;
     }
 
-    public JSONArray fluentAddAll(int index, Collection<?> c) {
-        list.addAll(index, c);
-        return this;
-    }
-
+    @Override
     public boolean removeAll(Collection<?> c) {
-        return list.removeAll(c);
+        return false;
     }
 
-    public JSONArray fluentRemoveAll(Collection<?> c) {
-        list.removeAll(c);
-        return this;
-    }
-
+    @Override
     public boolean retainAll(Collection<?> c) {
-        return list.retainAll(c);
+        return false;
     }
 
-    public JSONArray fluentRetainAll(Collection<?> c) {
-        list.retainAll(c);
-        return this;
-    }
-
+    @Override
     public void clear() {
-        list.clear();
+
     }
 
-    public JSONArray fluentClear() {
-        list.clear();
-        return this;
-    }
-
-    public Object set(int index, Object element) {
-        if (index == -1) {
-            list.add(element);
-            return null;
-        }
-
-        if (list.size() <= index) {
-            for (int i = list.size(); i < index; ++i) {
-                list.add(null);
-            }
-            list.add(element);
-            return null;
-        }
-
-        return list.set(index, element);
-    }
-
-    public JSONArray fluentSet(int index, Object element) {
-        set(index, element);
-        return this;
-    }
-
-    public void add(int index, Object element) {
-        list.add(index, element);
-    }
-
-    public JSONArray fluentAdd(int index, Object element) {
-        list.add(index, element);
-        return this;
-    }
-
-    public Object remove(int index) {
-        return list.remove(index);
-    }
-
-    public JSONArray fluentRemove(int index) {
-        list.remove(index);
-        return this;
-    }
-
-    public int indexOf(Object o) {
-        return list.indexOf(o);
-    }
-
-    public int lastIndexOf(Object o) {
-        return list.lastIndexOf(o);
-    }
-
+    @Override
     public ListIterator<Object> listIterator() {
+        List<Object> list = new ArrayList<>(_arrayNode.size());
+        Iterator<JsonNode> elements = _arrayNode.elements();
+        while (elements.hasNext()) {
+            list.add(elements.next());
+        }
         return list.listIterator();
     }
 
+
+    @Override
     public ListIterator<Object> listIterator(int index) {
-        return list.listIterator(index);
+        return null;
     }
 
+
+    @Override
     public List<Object> subList(int fromIndex, int toIndex) {
-        return list.subList(fromIndex, toIndex);
+        return null;
     }
 
-    public Object get(int index) {
-        return list.get(index);
-    }
 
     public JSONObject getJSONObject(int index) {
-        Object value = list.get(index);
-
-        if (value instanceof JSONObject) {
-            return (JSONObject) value;
+        //              ObjectNode objectNode=mapper.readValue(get(index).asText(),ObjectNode.class);
+        JsonNode jsonNode = _arrayNode.get(index);
+        Iterator<Map.Entry<String, JsonNode>> iterator = jsonNode.fields();
+        Map<String, JsonNode> kids = new HashMap<>();
+        for (Iterator<Map.Entry<String, JsonNode>> it = iterator; it.hasNext(); ) {
+            Map.Entry<String, JsonNode> entry = it.next();
+            kids.put(entry.getKey(), entry.getValue().deepCopy());
         }
-
-        if (value instanceof Map) {
-            return new JSONObject((Map) value);
-        }
-
-        return (JSONObject) toJSON(value);
+        return new JSONObject(JsonNodeFactory.instance, kids);
     }
 
     public JSONArray getJSONArray(int index) {
-        Object value = list.get(index);
-
-        if (value instanceof JSONArray) {
-            return (JSONArray) value;
+        try {
+            JsonNode jn = mapper.readValue(get(index).asText(), JsonNode.class);
+            JSONArray ja = new JSONArray(JsonNodeFactory.instance);
+            ja.add(jn);
+            return ja;
+        } catch (JsonMappingException e) {
+            e.printStackTrace();
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
         }
-
-        if (value instanceof List) {
-            return new JSONArray((List) value);
-        }
-
-        return (JSONArray) toJSON(value);
+        return null;
     }
 
     public <T> T getObject(int index, Class<T> clazz) {
-        Object obj = list.get(index);
-        return TypeUtils.castToJavaBean(obj, clazz);
+        try {
+            String value = get(index).asText();
+            if (isEmpty(value)) {
+                return null;
+            }
+            return JSON.parseObject(value, clazz);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
-    public <T> T getObject(int index, Type type) {
-        Object obj = list.get(index);
-        if (type instanceof Class) {
-            return (T) TypeUtils.castToJavaBean(obj, (Class) type);
-        } else {
-            String json = JSON.toJSONString(obj);
-            return (T) JSON.parseObject(json, type);
-        }
-    }
 
     public Boolean getBoolean(int index) {
-        Object value = get(index);
-
-        if (value == null) {
+        String value = get(index).asText();
+        if (isEmpty(value)) {
+            return Boolean.FALSE;
+        }
+        if (value.length() == 0 //
+                || "null".equals(value) //
+                || "NULL".equals(value)) {
             return null;
         }
-
-        return castToBoolean(value);
+        if ("true".equalsIgnoreCase(value) //
+                || "1".equals(value)) {
+            return Boolean.TRUE;
+        }
+        if ("false".equalsIgnoreCase(value) //
+                || "0".equals(value)) {
+            return Boolean.FALSE;
+        }
+        if ("Y".equalsIgnoreCase(value) //
+                || "T".equals(value)) {
+            return Boolean.TRUE;
+        }
+        if ("F".equalsIgnoreCase(value) //
+                || "N".equals(value)) {
+            return Boolean.FALSE;
+        }
+        throw new JacksonException("can not cast to boolean, value : " + value);
     }
 
     public boolean getBooleanValue(int index) {
-        Object value = get(index);
-
-        if (value == null) {
+        String value = get(index).asText();
+        if (isEmpty(value)) {
             return false;
         }
 
-        return castToBoolean(value).booleanValue();
-    }
-
-    public Byte getByte(int index) {
-        Object value = get(index);
-
-        return castToByte(value);
-    }
-
-    public byte getByteValue(int index) {
-        Object value = get(index);
-
-        Byte byteVal = castToByte(value);
-        if (byteVal == null) {
-            return 0;
-        }
-
-        return byteVal;
+        return getBoolean(index).booleanValue();
     }
 
     public Short getShort(int index) {
-        Object value = get(index);
+        String value = get(index).asText();
+        if (value.length() == 0 //
+                || "null".equals(value) //
+                || "NULL".equals(value)) {
+            return null;
+        }
+        return Short.parseShort(value);
+    }
 
-        return castToShort(value);
+    public Date getDate(int index) {
+        String value = getString(index);
+        if (isEmpty(value)) {
+            return new Date();
+        }
+        String format;
+        final int len = value.length();
+        if (len == JSON.DEFFAULT_DATE_FORMAT.length()
+                || (len == 22 && JSON.DEFFAULT_DATE_FORMAT.equals("yyyyMMddHHmmssSSSZ"))) {
+            format = JSON.DEFFAULT_DATE_FORMAT;
+        } else if (len == 10) {
+            format = "yyyy-MM-dd";
+        } else if (len == "yyyy-MM-dd HH:mm:ss".length()) {
+            format = "yyyy-MM-dd HH:mm:ss";
+        } else if (len == 29
+                && value.charAt(26) == ':'
+                && value.charAt(28) == '0') {
+            format = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
+        } else if (len == 23 && value.charAt(19) == ',') {
+            format = "yyyy-MM-dd HH:mm:ss,SSS";
+        } else {
+            format = "yyyy-MM-dd HH:mm:ss.SSS";
+        }
+        SimpleDateFormat dateFormat = new SimpleDateFormat(format, JSON.defaultLocale);
+        dateFormat.setTimeZone(JSON.defaultTimeZone);
+        try {
+            return dateFormat.parse(value);
+        } catch (ParseException e) {
+            throw new JacksonException("can not cast to Date, value : " + value);
+        }
     }
 
     public short getShortValue(int index) {
-        Object value = get(index);
-
-        Short shortVal = castToShort(value);
+        Short shortVal = getShort(index);
         if (shortVal == null) {
             return 0;
         }
 
-        return shortVal;
+        return shortVal.shortValue();
     }
 
     public Integer getInteger(int index) {
-        Object value = get(index);
+        String value = get(index).asText();
+        if (value.length() == 0 //
+                || "null".equals(value) //
+                || "NULL".equals(value)) {
+            return null;
+        }
+        if (value.indexOf(',') != -1) {
+            value = value.replaceAll(",", "");
+        }
 
-        return castToInt(value);
+        Matcher matcher = NUMBER_WITH_TRAILING_ZEROS_PATTERN.matcher(value);
+        if (matcher.find()) {
+            value = matcher.replaceAll("");
+        }
+        return Integer.parseInt(value);
     }
 
     public int getIntValue(int index) {
-        Object value = get(index);
-
-        Integer intVal = castToInt(value);
+        Integer intVal = getInteger(index);
         if (intVal == null) {
             return 0;
         }
 
-        return intVal;
+        return intVal.intValue();
     }
 
     public Long getLong(int index) {
-        Object value = get(index);
+        String value = get(index).asText();
+        if (isEmpty(value)) {
+            return Long.valueOf(DEFAULT_ZERO);
+        }
 
-        return castToLong(value);
+        return Long.valueOf(value);
     }
 
     public long getLongValue(int index) {
-        Object value = get(index);
-
-        Long longVal = castToLong(value);
-        if (longVal == null) {
-            return 0L;
+        String value = get(index).asText();
+        if (isEmpty(value)) {
+            return Long.parseLong(DEFAULT_ZERO);
         }
 
-        return longVal;
+        return Long.parseLong(value);
     }
 
     public Float getFloat(int index) {
-        Object value = get(index);
+        String value = get(index).asText();
+        if (isEmpty(value)) {
+            return Float.valueOf(DEFAULT_ZERO);
+        }
 
-        return castToFloat(value);
+        return Float.valueOf(value);
     }
 
     public float getFloatValue(int index) {
-        Object value = get(index);
-
-        Float floatValue = castToFloat(value);
-        if (floatValue == null) {
-            return 0F;
+        String value = get(index).asText();
+        if (isEmpty(value)) {
+            return Float.parseFloat(DEFAULT_ZERO);
         }
 
-        return floatValue;
+        return Float.parseFloat(value);
     }
 
     public Double getDouble(int index) {
-        Object value = get(index);
+        String value = get(index).asText();
+        if (isEmpty(value)) {
+            return Double.valueOf(DEFAULT_ZERO);
+        }
 
-        return castToDouble(value);
+        return Double.valueOf(value);
     }
 
     public double getDoubleValue(int index) {
-        Object value = get(index);
-
-        Double doubleValue = castToDouble(value);
-        if (doubleValue == null) {
-            return 0D;
+        String value = get(index).asText();
+        if (isEmpty(value)) {
+            return Double.parseDouble(DEFAULT_ZERO);
         }
 
-        return doubleValue;
+        return Double.parseDouble(value);
     }
 
     public BigDecimal getBigDecimal(int index) {
-        Object value = get(index);
+        String value = get(index).asText();
+        if (isEmpty(value)) {
+            return BigDecimal.valueOf(Long.parseLong(DEFAULT_ZERO));
+        }
 
-        return castToBigDecimal(value);
+        return BigDecimal.valueOf(Long.parseLong(value));
     }
 
     public BigInteger getBigInteger(int index) {
-        Object value = get(index);
-
-        return castToBigInteger(value);
+        String value = get(index).asText();
+        if (isEmpty(value)) {
+            return BigInteger.ZERO;
+        }
+        return BigInteger.valueOf(Long.parseLong(value));
     }
 
     public String getString(int index) {
-        Object value = get(index);
-
-        return castToString(value);
+        return get(index).asText();
     }
 
-    public java.util.Date getDate(int index) {
-        Object value = get(index);
-
-        return castToDate(value);
-    }
-
-    public Object getSqlDate(int index) {
-        Object value = get(index);
-
-        return castToSqlDate(value);
-    }
-
-    public Object getTimestamp(int index) {
-        Object value = get(index);
-
-        return castToTimestamp(value);
-    }
-
-    /**
-     * @since  1.2.23
-     */
-    public <T> List<T> toJavaList(Class<T> clazz) {
-        List<T> list = new ArrayList<T>(this.size());
-
-        ParserConfig config = ParserConfig.getGlobalInstance();
-
-        for (Object item : this) {
-            T classItem = (T) TypeUtils.cast(item, clazz, config);
-            list.add(classItem);
-        }
-
-        return list;
+    public static boolean isEmpty(Object value) {
+        return (value == null || "".equals(value) || "null".equals(value));
     }
 
     @Override
-    public Object clone() {
-        return new JSONArray(new ArrayList<Object>(list));
+    public JsonNode get(int index) {
+        return _arrayNode.get(index);
     }
 
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-
-        if (obj instanceof JSONArray) {
-            return this.list.equals(((JSONArray) obj).list);
-        }
-
-        return this.list.equals(obj);
+    @Override
+    public Object set(int index, Object element) {
+        return null;
     }
 
-    public int hashCode() {
-        return this.list.hashCode();
+    @Override
+    public void add(int index, Object element) {
+
     }
 
-    private void readObject(final java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
-        JSONObject.SecureObjectInputStream.ensureFields();
-        if (JSONObject.SecureObjectInputStream.fields != null && !JSONObject.SecureObjectInputStream.fields_error) {
-            ObjectInputStream secIn = new JSONObject.SecureObjectInputStream(in);
-            try {
-                secIn.defaultReadObject();
-                return;
-            } catch (java.io.NotActiveException e) {
-                // skip
-            }
-        }
-
-        in.defaultReadObject();
-        for (Object item : list) {
-            if (item == null) {
-                continue;
-            }
-
-            String typeName = item.getClass().getName();
-            if (TypeUtils.getClassFromMapping(typeName) == null) {
-                ParserConfig.global.checkAutoType(typeName, null);
-            }
-        }
+    @Override
+    public Object remove(int index) {
+        return null;
     }
+
+    @Override
+    public int indexOf(Object o) {
+        return 0;
+    }
+
+    @Override
+    public int lastIndexOf(Object o) {
+        return 0;
+    }
+
+    public ObjectMapper getMapper() {
+        return this.mapper;
+    }
+
+    public String toJSONString() {
+        return toString();
+    }
+
+
+    public static JSONObject parseObject(String text) {
+        return JacksonUtil.from(text, JSONObject.class);
+    }
+
+    public static <T> T parseObject(String text, Class<T> clazz) {
+        return JacksonUtil.from(text, clazz);
+    }
+
+    public static JSONArray parseArray(String text) {
+        return JSON.parseArray(text);
+    }
+
+    public static <T> List<T> parseArray(String text, Class<T> clazz) {
+        return JacksonUtil.fromList(text, clazz);
+    }
+
 }

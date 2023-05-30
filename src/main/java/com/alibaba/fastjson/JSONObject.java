@@ -1,125 +1,70 @@
-/*
- * Copyright 1999-2017 Alibaba Group.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.alibaba.fastjson;
 
-import static com.alibaba.fastjson.util.TypeUtils.castToBigDecimal;
-import static com.alibaba.fastjson.util.TypeUtils.castToBigInteger;
-import static com.alibaba.fastjson.util.TypeUtils.castToBoolean;
-import static com.alibaba.fastjson.util.TypeUtils.castToByte;
-import static com.alibaba.fastjson.util.TypeUtils.castToBytes;
-import static com.alibaba.fastjson.util.TypeUtils.castToDate;
-import static com.alibaba.fastjson.util.TypeUtils.castToDouble;
-import static com.alibaba.fastjson.util.TypeUtils.castToFloat;
-import static com.alibaba.fastjson.util.TypeUtils.castToInt;
-import static com.alibaba.fastjson.util.TypeUtils.castToLong;
-import static com.alibaba.fastjson.util.TypeUtils.castToShort;
-import static com.alibaba.fastjson.util.TypeUtils.castToSqlDate;
-import static com.alibaba.fastjson.util.TypeUtils.castToTimestamp;
+import com.alibaba.fastjson.parser.ParserConfig;
+import com.alibaba.fastjson.util.JacksonUtil;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import java.io.*;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Type;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.*;
 
-import com.alibaba.fastjson.annotation.JSONField;
-import com.alibaba.fastjson.parser.Feature;
-import com.alibaba.fastjson.parser.ParserConfig;
-import com.alibaba.fastjson.util.TypeUtils;
-
 /**
- * @author wenshao[szujobs@hotmail.com]
+ * 临时过渡，请使用Jackson
  */
-public class JSONObject extends JSON implements Map<String, Object>, Cloneable, Serializable, InvocationHandler {
+@Deprecated
+public class JSONObject extends JSON {
 
-    private static final long         serialVersionUID         = 1L;
-    private static final int          DEFAULT_INITIAL_CAPACITY = 16;
+    private static final long serialVersionUID = 1L;
 
-    private final Map<String, Object> map;
+    public final ObjectNode _objectNode;
 
-    public JSONObject(){
-        this(DEFAULT_INITIAL_CAPACITY, false);
+    public JSONObject() {
+        this(false);
     }
 
-    public JSONObject(Map<String, Object> map){
+
+    public JSONObject(Map<String, JsonNode> map) {
         if (map == null) {
             throw new IllegalArgumentException("map is null.");
         }
-        this.map = map;
+        _objectNode = new ObjectNode(JsonNodeFactory.instance, map);
     }
 
-    public JSONObject(boolean ordered){
-        this(DEFAULT_INITIAL_CAPACITY, ordered);
+
+    public JSONObject(boolean ordered) {
+        _objectNode = new ObjectNode(JsonNodeFactory.instance);
     }
 
-    public JSONObject(int initialCapacity){
+
+    public JSONObject(int initialCapacity) {
         this(initialCapacity, false);
     }
 
-    public JSONObject(int initialCapacity, boolean ordered){
-        if (ordered) {
-            map = new LinkedHashMap<String, Object>(initialCapacity);
-        } else {
-            map = new HashMap<String, Object>(initialCapacity);
-        }
+    public JSONObject(int initialCapacity, boolean ordered) {
+        _objectNode = new ObjectNode(JsonNodeFactory.instance);
+    }
+
+    public JSONObject(JsonNodeFactory jsonNodeFactory, Map<String, JsonNode> kids) {
+        _objectNode = new ObjectNode(jsonNodeFactory, kids);
     }
 
     public int size() {
-        return map.size();
+        return _objectNode.size();
     }
 
     public boolean isEmpty() {
-        return map.isEmpty();
+        return _objectNode.isEmpty();
     }
 
     public boolean containsKey(Object key) {
-        boolean result = map.containsKey(key);
-        if (!result) {
-            if (key instanceof Number
-                    || key instanceof Character
-                    || key instanceof Boolean
-                    || key instanceof UUID
-            ) {
-                result = map.containsKey(key.toString());
-            }
-        }
-        return result;
-    }
-
-    public boolean containsValue(Object value) {
-        return map.containsValue(value);
+        return _objectNode.has(Objects.toString(key));
     }
 
     public Object get(Object key) {
-        Object val = map.get(key);
-
-        if (val == null) {
-            if (key instanceof Number
-                    || key instanceof Character
-                    || key instanceof Boolean
-                    || key instanceof UUID
-            ) {
-                val = map.get(key.toString());
-            }
-        }
-
-        return val;
+        return JacksonUtil.getAsObject(_objectNode, Objects.toString(key), Object.class);
     }
 
     public Object getOrDefault(Object key, Object defaultValue) {
@@ -128,83 +73,66 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
     }
 
     public JSONObject getJSONObject(String key) {
-        Object value = map.get(key);
-
-        if (value instanceof JSONObject) {
-            return (JSONObject) value;
+        JsonNode jn = _objectNode.findValue(key);
+        Iterator<Map.Entry<String, JsonNode>> iterator = jn.fields();
+        Map<String, JsonNode> kids = new HashMap<>();
+        for (Iterator<Map.Entry<String, JsonNode>> it = iterator; it.hasNext(); ) {
+            Map.Entry<String, JsonNode> entry = it.next();
+            kids.put(entry.getKey(), entry.getValue().deepCopy());
         }
-
-        if (value instanceof Map) {
-            return new JSONObject((Map) value);
-        }
-
-        if (value instanceof String) {
-            return JSON.parseObject((String) value);
-        }
-
-        return (JSONObject) toJSON(value);
+        return new JSONObject(JsonNodeFactory.instance, kids);
     }
 
     public JSONArray getJSONArray(String key) {
-        Object value = map.get(key);
-
-        if (value instanceof JSONArray) {
-            return (JSONArray) value;
-        }
-
-        if (value instanceof List) {
-            return new JSONArray((List) value);
-        }
-
-        if (value instanceof String) {
-            return (JSONArray) JSON.parse((String) value);
-        }
-
-        return (JSONArray) toJSON(value);
+        JsonNode jn = _objectNode.findValue(key);
+        List<JsonNode> children = new ArrayList<>();
+        children.add(jn);
+        return new JSONArray(JsonNodeFactory.instance, children);
     }
 
     public <T> T getObject(String key, Class<T> clazz) {
-        Object obj = map.get(key);
-        return TypeUtils.castToJavaBean(obj, clazz);
+        return JacksonUtil.getAsObject(_objectNode, key, clazz);
     }
 
-    public <T> T getObject(String key, Type type) {
-        Object obj = map.get(key);
-        return TypeUtils.cast(obj, type, ParserConfig.getGlobalInstance());
+  /*  public <T> T getObject(String key, Type type) {
+        return JacksonUtil.getAsObject(_objectNode, key, type);
     }
 
     public <T> T getObject(String key, TypeReference typeReference) {
-        Object obj = map.get(key);
+        JsonNode obj = _objectNode.get(key);
         if (typeReference == null) {
             return (T) obj;
         }
         return TypeUtils.cast(obj, typeReference.getType(), ParserConfig.getGlobalInstance());
-    }
+    }*/
 
     public Boolean getBoolean(String key) {
-        Object value = get(key);
+        JsonNode value = _objectNode.get(key);
 
         if (value == null) {
             return null;
         }
 
-        return castToBoolean(value);
+        return value.asBoolean();
     }
 
     public byte[] getBytes(String key) {
-        Object value = get(key);
+        JsonNode value = _objectNode.get(key);
 
         if (value == null) {
             return null;
         }
 
-        return castToBytes(value);
+        try {
+            return value.binaryValue();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public boolean getBooleanValue(String key) {
-        Object value = get(key);
+        Boolean booleanVal = getBoolean(key);
 
-        Boolean booleanVal = castToBoolean(value);
         if (booleanVal == null) {
             return false;
         }
@@ -213,15 +141,16 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
     }
 
     public Byte getByte(String key) {
-        Object value = get(key);
+        byte[] bytes = getBytes(key);
+        if (bytes != null && bytes.length > 0) {
+            return bytes[0];
+        }
 
-        return castToByte(value);
+        return null;
     }
 
     public byte getByteValue(String key) {
-        Object value = get(key);
-
-        Byte byteVal = castToByte(value);
+        Byte byteVal = getByte(key);
         if (byteVal == null) {
             return 0;
         }
@@ -230,15 +159,16 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
     }
 
     public Short getShort(String key) {
-        Object value = get(key);
+        Integer integer = getInteger(key);
+        if (integer == null) {
+            return null;
+        }
 
-        return castToShort(value);
+        return integer.shortValue();
     }
 
     public short getShortValue(String key) {
-        Object value = get(key);
-
-        Short shortVal = castToShort(value);
+        Short shortVal = getShort(key);
         if (shortVal == null) {
             return 0;
         }
@@ -247,66 +177,92 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
     }
 
     public Integer getInteger(String key) {
-        Object value = get(key);
+        JsonNode value = _objectNode.get(key);
+        if (value == null) {
+            return null;
+        }
 
-        return castToInt(value);
+        if (value.isInt()) {
+            return value.intValue();
+        }
+
+        if (value.canConvertToInt()) {
+            return value.asInt();
+        }
+
+        return null;
     }
 
     public int getIntValue(String key) {
-        Object value = get(key);
-
-        Integer intVal = castToInt(value);
-        if (intVal == null) {
-            return 0;
-        }
-
-        return intVal.intValue();
+        return JacksonUtil.getAsInt(_objectNode, key);
     }
 
     public Long getLong(String key) {
-        Object value = get(key);
+        JsonNode value = _objectNode.get(key);
+        if (value == null) {
+            return null;
+        }
 
-        return castToLong(value);
+        if (value.isLong()) {
+            return value.longValue();
+        }
+
+        if (value.canConvertToLong()) {
+            return value.asLong();
+        }
+
+        return null;
     }
 
     public long getLongValue(String key) {
-        Object value = get(key);
+        Long longVal = getLong(key);
 
-        Long longVal = castToLong(value);
         if (longVal == null) {
-            return 0L;
+            return 0;
         }
 
-        return longVal.longValue();
+        return longVal.intValue();
     }
 
     public Float getFloat(String key) {
-        Object value = get(key);
+        JsonNode value = _objectNode.get(key);
+        if (value == null) {
+            return null;
+        }
 
-        return castToFloat(value);
+        if (value.isFloat()) {
+            return value.floatValue();
+        }
+
+        return null;
     }
 
     public float getFloatValue(String key) {
-        Object value = get(key);
+        Float floatValue = getFloat(key);
 
-        Float floatValue = castToFloat(value);
         if (floatValue == null) {
             return 0F;
         }
 
-        return floatValue.floatValue();
+        return floatValue;
     }
 
     public Double getDouble(String key) {
-        Object value = get(key);
+        JsonNode value = _objectNode.get(key);
+        if (value == null) {
+            return null;
+        }
 
-        return castToDouble(value);
+        if (value.isDouble()) {
+            return value.doubleValue();
+        }
+
+        return null;
     }
 
     public double getDoubleValue(String key) {
-        Object value = get(key);
+        Double doubleValue = getDouble(key);
 
-        Double doubleValue = castToDouble(value);
         if (doubleValue == null) {
             return 0D;
         }
@@ -315,19 +271,36 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
     }
 
     public BigDecimal getBigDecimal(String key) {
-        Object value = get(key);
+        JsonNode value = _objectNode.get(key);
 
-        return castToBigDecimal(value);
+        if (value == null) {
+            return null;
+        }
+
+        if (value.isBigDecimal()) {
+            return value.decimalValue();
+        }
+
+        return null;
     }
 
     public BigInteger getBigInteger(String key) {
-        Object value = get(key);
+        JsonNode value = _objectNode.get(key);
 
-        return castToBigInteger(value);
+        if (value == null) {
+            return null;
+        }
+
+        if (value.isBigInteger()) {
+            return value.bigIntegerValue();
+        }
+
+        return null;
     }
 
+
     public String getString(String key) {
-        Object value = get(key);
+        JsonNode value = _objectNode.get(key);
 
         if (value == null) {
             return null;
@@ -335,15 +308,24 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
 
         return value.toString();
     }
+/*
 
     public Date getDate(String key) {
-        Object value = get(key);
+        JsonNode value = _objectNode.get(key);
+
+        if (value == null) {
+            return null;
+        }
 
         return castToDate(value);
     }
 
     public Object getSqlDate(String key) {
-        Object value = get(key);
+        JsonNode value = _objectNode.get(key);
+
+        if (value == null) {
+            return null;
+        }
 
         return castToSqlDate(value);
     }
@@ -352,63 +334,79 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
         Object value = get(key);
 
         return castToTimestamp(value);
-    }
+    }*/
 
     public Object put(String key, Object value) {
-        return map.put(key, value);
+        return JacksonUtil.add(_objectNode, key, value);
     }
 
     public JSONObject fluentPut(String key, Object value) {
-        map.put(key, value);
+        this.put(key, value);
         return this;
     }
 
     public void putAll(Map<? extends String, ?> m) {
-        map.putAll(m);
+        for (Map.Entry<? extends String, ?> entry : m.entrySet()) {
+            JacksonUtil.add(_objectNode, entry.getKey(), entry.getValue());
+        }
     }
 
     public JSONObject fluentPutAll(Map<? extends String, ?> m) {
-        map.putAll(m);
+        this.putAll(m);
         return this;
     }
 
     public void clear() {
-        map.clear();
+        _objectNode.removeAll();
     }
 
     public JSONObject fluentClear() {
-        map.clear();
+        this.clear();
         return this;
     }
 
     public Object remove(Object key) {
-        return map.remove(key);
+        return _objectNode.remove(Objects.toString(key));
     }
 
     public JSONObject fluentRemove(Object key) {
-        map.remove(key);
+        this.remove(key);
         return this;
     }
 
     public Set<String> keySet() {
-        return map.keySet();
+        return thisToMap().keySet();
     }
 
     public Collection<Object> values() {
-        return map.values();
+        return thisToMap().values();
     }
 
     public Set<Map.Entry<String, Object>> entrySet() {
-        return map.entrySet();
+        return thisToMap().entrySet();
     }
 
-    @Override
-    public JSONObject clone() {
-        return new JSONObject(map instanceof LinkedHashMap //
-                ? new LinkedHashMap<String, Object>(map) //
-                : new HashMap<String, Object>(map)
-        );
+    private Map<String, Object> thisToMap() {
+        Map<String, Object> map = new HashMap<>(_objectNode.size());
+
+        Iterator<Map.Entry<String, JsonNode>> fields = _objectNode.fields();
+        while (fields.hasNext()) {
+            Map.Entry<String, JsonNode> next = fields.next();
+            map.put(next.getKey(), next.getValue());
+        }
+        return map;
     }
+
+
+    /**
+     * @Override public JSONObject clone() {
+     * ObjectNode jsonNodes = _objectNode.deepCopy();
+     * return new JSONObject(map instanceof LinkedHashMap //
+     * ? new LinkedHashMap<String, Object>(map) //
+     * : new HashMap<String, Object>(map)
+     * );
+     * }
+     */
 
     @Override
     public boolean equals(Object obj) {
@@ -417,16 +415,17 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
         }
 
         if (obj instanceof JSONObject) {
-            return this.map.equals(((JSONObject) obj).map);
+            return this._objectNode.equals(((JSONObject) obj)._objectNode);
         }
 
-        return this.map.equals(obj);
+        return this._objectNode.equals(obj);
     }
 
     @Override
     public int hashCode() {
-        return this.map.hashCode();
+        return this._objectNode.hashCode();
     }
+/*
 
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         Class<?>[] parameterTypes = method.getParameterTypes();
@@ -513,131 +512,15 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
     public Map<String, Object> getInnerMap() {
         return this.map;
     }
-
-
-
-    private void readObject(final java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
-        SecureObjectInputStream.ensureFields();
-        if (SecureObjectInputStream.fields != null && !SecureObjectInputStream.fields_error) {
-            ObjectInputStream secIn = new SecureObjectInputStream(in);
-            try {
-                secIn.defaultReadObject();
-                return;
-            } catch (java.io.NotActiveException e) {
-                // skip
-            }
-        }
-
-        in.defaultReadObject();
-        for (Entry entry : map.entrySet()) {
-            final Object key = entry.getKey();
-            if (key != null) {
-                ParserConfig.global.checkAutoType(key.getClass());
-            }
-
-            final Object value = entry.getValue();
-            if (value != null) {
-                ParserConfig.global.checkAutoType(value.getClass());
-            }
-        }
-    }
-
-    static class SecureObjectInputStream extends ObjectInputStream {
-        static Field[] fields;
-        static volatile boolean fields_error;
-
-        static void ensureFields() {
-            if (fields == null && !fields_error) {
-                try {
-                    final Field[] declaredFields = ObjectInputStream.class.getDeclaredFields();
-                    String[] fieldnames = new String[]{"bin", "passHandle", "handles", "curContext"};
-                    Field[] array = new Field[fieldnames.length];
-                    for (int i = 0; i < fieldnames.length; i++) {
-                        Field field = TypeUtils
-                                .getField(ObjectInputStream.class
-                                        , fieldnames[i]
-                                        , declaredFields
-                                );
-                        field.setAccessible(true);
-                        array[i] = field;
-                    }
-                    fields = array;
-                } catch (Throwable error) {
-                    fields_error = true;
-                }
-            }
-        }
-
-        public SecureObjectInputStream(ObjectInputStream in) throws IOException {
-            super(in);
-            try {
-                for (int i = 0; i < fields.length; i++) {
-                    final Field field = fields[i];
-                    final Object value = field.get(in);
-                    field.set(this, value);
-                }
-            } catch (IllegalAccessException e) {
-                fields_error = true;
-            }
-        }
-
-        protected Class<?> resolveClass(ObjectStreamClass desc)
-                throws IOException, ClassNotFoundException {
-            String name = desc.getName();
-            if (name.length() > 2) {
-                int index = name.lastIndexOf('[');
-                if (index != -1) {
-                    name = name.substring(index + 1);
-                }
-                if (name.length() > 2 && name.charAt(0) == 'L' && name.charAt(name.length() - 1) == ';') {
-                    name = name.substring(1, name.length() - 1);
-                }
-
-                if (TypeUtils.getClassFromMapping(name) == null) {
-                    ParserConfig.global.checkAutoType(name, null, Feature.SupportAutoType.mask);
-                }
-            }
-            return super.resolveClass(desc);
-        }
-
-        protected Class<?> resolveProxyClass(String[] interfaces)
-                throws IOException, ClassNotFoundException {
-            for (String interfacename : interfaces) {
-                //检查是否处于黑名单
-                if (TypeUtils.getClassFromMapping(interfacename) == null) {
-                    ParserConfig.global.checkAutoType(interfacename, null);
-                }
-            }
-            return super.resolveProxyClass(interfaces);
-        }
-
-        //Hack:默认构造方法会调用这个方法，重写此方法使用反射还原部分关键属性
-        protected void readStreamHeader() throws IOException, StreamCorruptedException {
-
-        }
-    }
+*/
 
     public <T> T toJavaObject(Class<T> clazz) {
-        if (clazz == Map.class || clazz == JSONObject.class || clazz == JSON.class) {
-            return (T) this;
-        }
-
-        if (clazz == Object.class && !containsKey(JSON.DEFAULT_TYPE_KEY)) {
-            return (T) this;
-        }
-
-        return TypeUtils.castToJavaBean(this, clazz, ParserConfig.getGlobalInstance());
+        return JacksonUtil.from(_objectNode, clazz);
     }
 
     public <T> T toJavaObject(Class<T> clazz, ParserConfig config, int features) {
-        if (clazz == Map.class) {
-            return (T) this;
-        }
+        // TODO: zhangzhliang@yonyou.com 2023/5/29 解析配置
+        return JacksonUtil.from(_objectNode, clazz);
 
-        if (clazz == Object.class && !containsKey(JSON.DEFAULT_TYPE_KEY)) {
-            return (T) this;
-        }
-
-        return TypeUtils.castToJavaBean(this, clazz, config);
     }
 }
