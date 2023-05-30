@@ -35,41 +35,44 @@ import java.util.*;
  * 数据量高于百万的时候，速度和FastJson相差极小
  * API和注解支持最完善，可定制性最强
  * 支持的数据源最广泛（字符串，对象，文件、流、URL）
+ *
+ * @author zhzhl
  */
 public class JacksonUtil {
-    //    private static final Logger log = LoggerFactory.getLogger(JacksonUtil.class);
-    private static ObjectMapper mapper;
-    private static final String TRUE = "true";
 
-    private static volatile Set<JsonReadFeature> JSON_READ_FEATURES_ENABLED;
+    private static final ObjectMapper OBJECT_MAPPER;
+
+    private static final Set<JsonReadFeature> JSON_READ_FEATURES_ENABLED;
 
     static {
+        //https://www.cnblogs.com/yourbatman/p/13390444.html#%E6%94%AF%E6%8C%81%E9%9D%9E%E6%A0%87%E5%87%86%E6%A0%BC%E5%BC%8F
+        JSON_READ_FEATURES_ENABLED = new HashSet<>();
+        //允许在JSON中使用Java注释
+        JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_JAVA_COMMENTS);
+        //允许 json 存在没用双引号括起来的 field
+        JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES);
+        //允许 json 存在使用单引号括起来的 field
+        JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_SINGLE_QUOTES);
+        //允许 json 存在没用引号括起来的 ascii 控制字符
+        JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS);
+        //允许 json number 类型的数存在前导 0 (例: 0001)
+        JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_LEADING_ZEROS_FOR_NUMBERS);
+        //允许 json 存在 NaN, INF, -INF 作为 number 类型
+        JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_NON_NUMERIC_NUMBERS);
+        //允许数组json的结尾多逗号
+        JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_TRAILING_COMMA);
+        //否允许**反斜杠**转义任何字符
+        JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER);
+
         try {
-            JSON_READ_FEATURES_ENABLED = new HashSet<>();
-            //允许在JSON中使用Java注释
-            JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_JAVA_COMMENTS);
-            //允许 json 存在没用双引号括起来的 field
-            JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES);
-            //允许 json 存在使用单引号括起来的 field
-            JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_SINGLE_QUOTES);
-            //允许 json 存在没用引号括起来的 ascii 控制字符
-            JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS);
-            //允许 json number 类型的数存在前导 0 (例: 0001)
-            JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_LEADING_ZEROS_FOR_NUMBERS);
-            //允许 json 存在 NaN, INF, -INF 作为 number 类型
-            JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_NON_NUMERIC_NUMBERS);
-            //允许数组json的结尾多逗号
-            JSON_READ_FEATURES_ENABLED.add(JsonReadFeature.ALLOW_TRAILING_COMMA);
             //初始化
-            mapper = initMapper();
+            JsonMapper.Builder builder = JsonMapper.builder().enable(JSON_READ_FEATURES_ENABLED.toArray(new JsonReadFeature[0]));
+            JsonMapper jsonMapper = builder.build();
+
+            OBJECT_MAPPER = initMapperConfig(jsonMapper);
         } catch (Exception e) {
             throw new JacksonException("jackson config error", e);
         }
-    }
-
-    public static ObjectMapper initMapper() {
-        JsonMapper.Builder builder = JsonMapper.builder().enable(JSON_READ_FEATURES_ENABLED.toArray(new JsonReadFeature[0]));
-        return initMapperConfig(builder.build());
     }
 
     public static ObjectMapper initMapperConfig(ObjectMapper objectMapper) {
@@ -108,12 +111,12 @@ public class JacksonUtil {
     }
 
     public static ObjectMapper getObjectMapper() {
-        return mapper;
+        return OBJECT_MAPPER;
     }
 
 
     public static ObjectNode createObjectNode() {
-        return mapper.createObjectNode();
+        return OBJECT_MAPPER.createObjectNode();
     }
 
     /**
@@ -124,9 +127,32 @@ public class JacksonUtil {
      */
     public static String toJson(Object obj) {
         try {
-            return mapper.writeValueAsString(obj);
+            return OBJECT_MAPPER.writeValueAsString(obj);
         } catch (JsonProcessingException e) {
             throw new JacksonException("转json字符串失败:{}", obj, e);
+        }
+    }
+
+
+    /**
+     * 序列化为JSON
+     */
+    public static <V> String toJson(List<V> list) {
+        try {
+            return OBJECT_MAPPER.writeValueAsString(list);
+        } catch (JsonProcessingException e) {
+            throw new JacksonException("jackson to error, data: {}", list, e);
+        }
+    }
+
+    /**
+     * 序列化为JSON
+     */
+    public static <V> String to(V v) {
+        try {
+            return OBJECT_MAPPER.writeValueAsString(v);
+        } catch (JsonProcessingException e) {
+            throw new JacksonException("jackson to error, data: {}", v, e);
         }
     }
 
@@ -145,33 +171,28 @@ public class JacksonUtil {
             return null;
         }
         try {
-            JavaType javaType = mapper.getTypeFactory().constructType(type);
-            return mapper.readValue(json, javaType);
+            JavaType javaType = OBJECT_MAPPER.getTypeFactory().constructType(type);
+            return OBJECT_MAPPER.readValue(json, javaType);
         } catch (IOException e) {
             throw new JacksonException("jackson from error, json: {}, type: {}", json, type, e);
         }
     }
 
+    /**
+     * ObjectNode转Class
+     *
+     * @param objectNode
+     * @param type
+     * @param <V>
+     * @return
+     */
     public static <V> V from(ObjectNode objectNode, Class<V> type) {
         if (null == objectNode) {
             return null;
         }
         try {
-            return mapper.treeToValue(objectNode, type);
+            return OBJECT_MAPPER.treeToValue(objectNode, type);
         } catch (IOException e) {
-            throw new JacksonException("jackson from error, json: {}, type: {}", objectNode, type, e);
-        }
-    }
-
-    public static <V> V from(ObjectNode objectNode, Type type) {
-        if (null == objectNode) {
-            return null;
-        }
-        try {
-            JavaType javaType = mapper.getTypeFactory().constructType(type);
-            // TODO: zhangzhliang@yonyou.com 2023/5/29
-            return null;
-        } catch (Exception e) {
             throw new JacksonException("jackson from error, json: {}, type: {}", objectNode, type, e);
         }
     }
@@ -181,7 +202,7 @@ public class JacksonUtil {
      */
     public static <V> V from(URL url, Class<V> type) {
         try {
-            return mapper.readValue(url, type);
+            return OBJECT_MAPPER.readValue(url, type);
         } catch (IOException e) {
             throw new JacksonException("jackson from error, url: {}, type: {}", url.getPath(), type, e);
         }
@@ -193,7 +214,7 @@ public class JacksonUtil {
      */
     public static <V> V from(File file, Class<V> type) {
         try {
-            return mapper.readValue(file, type);
+            return OBJECT_MAPPER.readValue(file, type);
         } catch (IOException e) {
             throw new JacksonException("jackson from error, file path: {}, type: {}", file.getPath(), type, e);
         }
@@ -204,7 +225,7 @@ public class JacksonUtil {
      */
     public static <V> V from(InputStream inputStream, Class<V> type) {
         try {
-            return mapper.readValue(inputStream, type);
+            return OBJECT_MAPPER.readValue(inputStream, type);
         } catch (IOException e) {
             throw new JacksonException("jackson from error, type: {}", type, e);
         }
@@ -223,7 +244,7 @@ public class JacksonUtil {
      */
     public static <V> V from(URL url, TypeReference<V> type) {
         try {
-            return mapper.readValue(url, type);
+            return OBJECT_MAPPER.readValue(url, type);
         } catch (IOException e) {
             throw new JacksonException("jackson from error, url: {}, type: {}", url.getPath(), type, e);
         }
@@ -234,7 +255,7 @@ public class JacksonUtil {
      */
     public static <V> V from(File file, TypeReference<V> type) {
         try {
-            return mapper.readValue(file, type);
+            return OBJECT_MAPPER.readValue(file, type);
         } catch (IOException e) {
             throw new JacksonException("jackson from error, file path: {}, type: {}", file.getPath(), type, e);
         }
@@ -245,7 +266,7 @@ public class JacksonUtil {
      */
     public static <V> V from(InputStream inputStream, TypeReference<V> type) {
         try {
-            return mapper.readValue(inputStream, type);
+            return OBJECT_MAPPER.readValue(inputStream, type);
         } catch (IOException e) {
             throw new JacksonException("jackson from error, type: {}", type, e);
         }
@@ -257,8 +278,8 @@ public class JacksonUtil {
      */
     public static <V> List<V> fromList(URL url, Class<V> type) {
         try {
-            CollectionType collectionType = mapper.getTypeFactory().constructCollectionType(ArrayList.class, type);
-            return mapper.readValue(url, collectionType);
+            CollectionType collectionType = OBJECT_MAPPER.getTypeFactory().constructCollectionType(ArrayList.class, type);
+            return OBJECT_MAPPER.readValue(url, collectionType);
         } catch (IOException e) {
             throw new JacksonException("jackson from error, url: {}, type: {}", url.getPath(), type, e);
         }
@@ -270,8 +291,8 @@ public class JacksonUtil {
      */
     public static <V> List<V> fromList(InputStream inputStream, Class<V> type) {
         try {
-            CollectionType collectionType = mapper.getTypeFactory().constructCollectionType(ArrayList.class, type);
-            return mapper.readValue(inputStream, collectionType);
+            CollectionType collectionType = OBJECT_MAPPER.getTypeFactory().constructCollectionType(ArrayList.class, type);
+            return OBJECT_MAPPER.readValue(inputStream, collectionType);
         } catch (IOException e) {
             throw new JacksonException("jackson from error, type: {}", type, e);
         }
@@ -283,8 +304,8 @@ public class JacksonUtil {
      */
     public static <V> List<V> fromList(File file, Class<V> type) {
         try {
-            CollectionType collectionType = mapper.getTypeFactory().constructCollectionType(ArrayList.class, type);
-            return mapper.readValue(file, collectionType);
+            CollectionType collectionType = OBJECT_MAPPER.getTypeFactory().constructCollectionType(ArrayList.class, type);
+            return OBJECT_MAPPER.readValue(file, collectionType);
         } catch (IOException e) {
             throw new JacksonException("jackson from error, file path: {}, type: {}", file.getPath(), type, e);
         }
@@ -299,8 +320,8 @@ public class JacksonUtil {
             return null;
         }
         try {
-            CollectionType collectionType = mapper.getTypeFactory().constructCollectionType(ArrayList.class, type);
-            return mapper.readValue(json, collectionType);
+            CollectionType collectionType = OBJECT_MAPPER.getTypeFactory().constructCollectionType(ArrayList.class, type);
+            return OBJECT_MAPPER.readValue(json, collectionType);
         } catch (IOException e) {
             throw new JacksonException("jackson from error, json: {}, type: {}", json, type, e);
         }
@@ -314,8 +335,8 @@ public class JacksonUtil {
             return null;
         }
         try {
-            MapType mapType = mapper.getTypeFactory().constructMapType(HashMap.class, String.class, Object.class);
-            return mapper.readValue(json, mapType);
+            MapType mapType = OBJECT_MAPPER.getTypeFactory().constructMapType(HashMap.class, String.class, Object.class);
+            return OBJECT_MAPPER.readValue(json, mapType);
         } catch (IOException e) {
             throw new JacksonException("jackson from error, json: {}, type: {}", json, e);
         }
@@ -324,31 +345,9 @@ public class JacksonUtil {
     /**
      * 序列化为JSON
      */
-    public static <V> String to(List<V> list) {
-        try {
-            return mapper.writeValueAsString(list);
-        } catch (JsonProcessingException e) {
-            throw new JacksonException("jackson to error, data: {}", list, e);
-        }
-    }
-
-    /**
-     * 序列化为JSON
-     */
-    public static <V> String to(V v) {
-        try {
-            return mapper.writeValueAsString(v);
-        } catch (JsonProcessingException e) {
-            throw new JacksonException("jackson to error, data: {}", v, e);
-        }
-    }
-
-    /**
-     * 序列化为JSON
-     */
     public static <V> void toFile(String path, List<V> list) {
         try (Writer writer = new FileWriter(new File(path), true)) {
-            mapper.writer().writeValues(writer).writeAll(list);
+            OBJECT_MAPPER.writer().writeValues(writer).writeAll(list);
         } catch (Exception e) {
             throw new JacksonException("jackson to file error, path: {}, list: {}", path, list, e);
         }
@@ -359,7 +358,7 @@ public class JacksonUtil {
      */
     public static <V> void toFile(String path, V v) {
         try (Writer writer = new FileWriter(new File(path), true)) {
-            mapper.writer().writeValues(writer).write(v);
+            OBJECT_MAPPER.writer().writeValues(writer).write(v);
         } catch (Exception e) {
             throw new JacksonException("jackson to file error, path: {}, data: {}", path, v, e);
         }
@@ -370,80 +369,39 @@ public class JacksonUtil {
      *
      * @return String，默认为 null
      */
-    public static String getAsString(String json, String key) {
-        if (isEmpty(json)) {
+    public static String getString(JsonNode json, String key) {
+        JsonNode jsonNode = getJsonNode(json, key);
+        if (null == jsonNode) {
             return null;
         }
-        try {
-            JsonNode jsonNode = getAsJsonObject(json, key);
-            if (null == jsonNode) {
-                return null;
-            }
-            return getAsString(jsonNode);
-        } catch (Exception e) {
-            throw new JacksonException("jackson get string error, json: {}, key: {}", json, key, e);
-        }
+        return castToString(jsonNode);
     }
 
-    private static String getAsString(JsonNode jsonNode) {
+    private static String castToString(JsonNode jsonNode) {
         return jsonNode.isTextual() ? jsonNode.textValue() : jsonNode.toString();
     }
 
-    /**
-     * 从json串中获取某个字段
-     *
-     * @return int，默认为 0
-     */
-    public static int getAsInt(String json, String key) {
-        if (isEmpty(json)) {
-            return 0;
-        }
-        try {
-            JsonNode jsonNode = getAsJsonObject(json, key);
-            if (null == jsonNode) {
-                return 0;
-            }
-            return jsonNode.isInt() ? jsonNode.intValue() : Integer.parseInt(getAsString(jsonNode));
-        } catch (Exception e) {
-            throw new JacksonException("jackson get int error, json: {}, key: {}", json, key, e);
-        }
-    }
-
-    public static int getAsInt(ObjectNode json, String key) {
-        JsonNode jsonNode = getAsJsonObject(json, key);
+    public static Integer getInteger(ObjectNode json, String key) {
+        JsonNode jsonNode = getJsonNode(json, key);
         if (null == jsonNode) {
-            return 0;
-        }
-        return jsonNode.isInt() ? jsonNode.intValue() : Integer.parseInt(getAsString(jsonNode));
-    }
-
-    public static Integer getAsInteger(ObjectNode json, String key) {
-        JsonNode jsonNode = getAsJsonObject(json, key);
-        if (null == jsonNode || !jsonNode.isInt()) {
             return null;
         }
-        return jsonNode.intValue();
-    }
 
+        return jsonNode.isInt() ? jsonNode.intValue() : TypeUtils.castToInt(castToString(jsonNode));
+    }
 
     /**
      * 从json串中获取某个字段
      *
      * @return long，默认为 0
      */
-    public static long getAsLong(String json, String key) {
-        if (isEmpty(json)) {
-            return 0L;
+    public static Long getLong(ObjectNode json, String key) {
+        JsonNode jsonNode = getJsonNode(json, key);
+        if (null == jsonNode) {
+            return null;
         }
-        try {
-            JsonNode jsonNode = getAsJsonObject(json, key);
-            if (null == jsonNode) {
-                return 0L;
-            }
-            return jsonNode.isLong() ? jsonNode.longValue() : Long.parseLong(getAsString(jsonNode));
-        } catch (Exception e) {
-            throw new JacksonException("jackson get long error, json: {}, key: {}", json, key, e);
-        }
+
+        return jsonNode.isLong() ? jsonNode.longValue() : TypeUtils.castToLong(castToString(jsonNode));
     }
 
     /**
@@ -451,19 +409,13 @@ public class JacksonUtil {
      *
      * @return double，默认为 0.0
      */
-    public static double getAsDouble(String json, String key) {
-        if (isEmpty(json)) {
-            return 0.0;
+    public static Double getDouble(ObjectNode json, String key) {
+        JsonNode jsonNode = getJsonNode(json, key);
+        if (null == jsonNode) {
+            return null;
         }
-        try {
-            JsonNode jsonNode = getAsJsonObject(json, key);
-            if (null == jsonNode) {
-                return 0.0;
-            }
-            return jsonNode.isDouble() ? jsonNode.doubleValue() : Double.parseDouble(getAsString(jsonNode));
-        } catch (Exception e) {
-            throw new JacksonException("jackson get double error, json: {}, key: {}", json, key, e);
-        }
+
+        return jsonNode.isDouble() ? jsonNode.doubleValue() : TypeUtils.castToDouble(castToString(jsonNode));
     }
 
     /**
@@ -471,19 +423,13 @@ public class JacksonUtil {
      *
      * @return BigInteger，默认为 0.0
      */
-    public static BigInteger getAsBigInteger(String json, String key) {
-        if (isEmpty(json)) {
-            return new BigInteger(String.valueOf(0.00));
+    public static BigInteger getBigInteger(ObjectNode json, String key) {
+        JsonNode jsonNode = getJsonNode(json, key);
+        if (null == jsonNode) {
+            return null;
         }
-        try {
-            JsonNode jsonNode = getAsJsonObject(json, key);
-            if (null == jsonNode) {
-                return new BigInteger(String.valueOf(0.00));
-            }
-            return jsonNode.isBigInteger() ? jsonNode.bigIntegerValue() : new BigInteger(getAsString(jsonNode));
-        } catch (Exception e) {
-            throw new JacksonException("jackson get big integer error, json: {}, key: {}", json, key, e);
-        }
+
+        return jsonNode.isBigInteger() ? jsonNode.bigIntegerValue() : TypeUtils.castToBigInteger(castToString(jsonNode));
     }
 
     /**
@@ -491,19 +437,13 @@ public class JacksonUtil {
      *
      * @return BigDecimal，默认为 0.00
      */
-    public static BigDecimal getAsBigDecimal(String json, String key) {
-        if (isEmpty(json)) {
-            return new BigDecimal("0.00");
+    public static BigDecimal getBigDecimal(ObjectNode json, String key) {
+        JsonNode jsonNode = getJsonNode(json, key);
+        if (null == jsonNode) {
+            return null;
         }
-        try {
-            JsonNode jsonNode = getAsJsonObject(json, key);
-            if (null == jsonNode) {
-                return new BigDecimal("0.00");
-            }
-            return jsonNode.isBigDecimal() ? jsonNode.decimalValue() : new BigDecimal(getAsString(jsonNode));
-        } catch (Exception e) {
-            throw new JacksonException("jackson get big decimal error, json: {}, key: {}", json, key, e);
-        }
+
+        return jsonNode.isBigDecimal() ? jsonNode.decimalValue() : TypeUtils.castToBigDecimal(castToString(jsonNode));
     }
 
     /**
@@ -511,32 +451,13 @@ public class JacksonUtil {
      *
      * @return boolean, 默认为false
      */
-    public static boolean getAsBoolean(String json, String key) {
-        if (isEmpty(json)) {
-            return false;
+    public static Boolean getBoolean(ObjectNode json, String key) {
+        JsonNode jsonNode = getJsonNode(json, key);
+        if (null == jsonNode) {
+            return null;
         }
-        try {
-            JsonNode jsonNode = getAsJsonObject(json, key);
-            if (null == jsonNode) {
-                return false;
-            }
-            if (jsonNode.isBoolean()) {
-                return jsonNode.booleanValue();
-            } else {
-                if (jsonNode.isTextual()) {
-                    String textValue = jsonNode.textValue();
-                    if ("1".equals(textValue)) {
-                        return true;
-                    } else {
-                        return toBoolean(textValue);
-                    }
-                } else {//number
-                    return toBoolean(jsonNode.intValue());
-                }
-            }
-        } catch (Exception e) {
-            throw new JacksonException("jackson get boolean error, json: {}, key: {}", json, key, e);
-        }
+
+        return jsonNode.isBoolean() ? jsonNode.booleanValue() : TypeUtils.castToBoolean(castToString(jsonNode));
     }
 
     /**
@@ -544,49 +465,52 @@ public class JacksonUtil {
      *
      * @return byte[], 默认为 null
      */
-    public static byte[] getAsBytes(String json, String key) {
-        if (isEmpty(json)) {
-            return null;
-        }
+    public static byte[] getBytes(ObjectNode json, String key) {
         try {
-            JsonNode jsonNode = getAsJsonObject(json, key);
+            JsonNode jsonNode = getJsonNode(json, key);
             if (null == jsonNode) {
                 return null;
             }
-            return jsonNode.isBinary() ? jsonNode.binaryValue() : getAsString(jsonNode).getBytes();
+            return jsonNode.isBinary() ? jsonNode.binaryValue() : castToString(jsonNode).getBytes();
         } catch (Exception e) {
             throw new JacksonException("jackson get byte error, json: {}, key: {}", json, key, e);
         }
     }
 
-    /**
-     * 从json串中获取某个字段
-     *
-     * @return object, 默认为 null
-     */
-    public static <V> V getAsObject(String json, String key, Class<V> type) {
-        if (isEmpty(json)) {
-            return null;
-        }
-        try {
-            JsonNode jsonNode = getAsJsonObject(json, key);
-            if (null == jsonNode) {
-                return null;
-            }
-            JavaType javaType = mapper.getTypeFactory().constructType(type);
-            return from(getAsString(jsonNode), javaType);
-        } catch (Exception e) {
-            throw new JacksonException("jackson get list error, json: {}, key: {}, type: {}", json, key, type, e);
-        }
-    }
-
-    public static <V> V getAsObject(ObjectNode json, String key, Class<V> type) {
-        JsonNode jsonNode = getAsJsonObject(json, key);
+    public static Byte getByte(ObjectNode json, String key) {
+        JsonNode jsonNode = getJsonNode(json, key);
         if (null == jsonNode) {
             return null;
         }
-        JavaType javaType = mapper.getTypeFactory().constructType(type);
-        return from(getAsString(jsonNode), javaType);
+
+        return TypeUtils.castToByte(castToString(jsonNode));
+    }
+
+    public static Short getShort(ObjectNode json, String key) {
+        JsonNode jsonNode = getJsonNode(json, key);
+        if (null == jsonNode) {
+            return null;
+        }
+
+        return TypeUtils.castToShort(castToString(jsonNode));
+    }
+
+    public static Float getFloat(ObjectNode json, String key) {
+        JsonNode jsonNode = getJsonNode(json, key);
+        if (null == jsonNode) {
+            return null;
+        }
+
+        return jsonNode.isFloat() ? jsonNode.floatValue() : TypeUtils.castToFloat(castToString(jsonNode));
+    }
+
+    public static <V> V getObject(ObjectNode json, String key, Class<V> type) {
+        JsonNode jsonNode = getJsonNode(json, key);
+        if (null == jsonNode) {
+            return null;
+        }
+        JavaType javaType = OBJECT_MAPPER.getTypeFactory().constructType(type);
+        return from(castToString(jsonNode), javaType);
     }
 
 
@@ -594,31 +518,24 @@ public class JacksonUtil {
      * 从json串中获取某个字段
      *
      * @return list, 默认为 null
-     */
-    public static <V> List<V> getAsList(String json, String key, Class<V> type) {
-        if (isEmpty(json)) {
+     *//*
+    public static <V> List<V> getList(String json, String key, Class<V> type) {
+        JsonNode jsonNode = getAsJsonObject(json, key);
+        if (null == jsonNode) {
             return null;
         }
-        try {
-            JsonNode jsonNode = getAsJsonObject(json, key);
-            if (null == jsonNode) {
-                return null;
-            }
-            CollectionType collectionType = mapper.getTypeFactory().constructCollectionType(ArrayList.class, type);
-            return from(getAsString(jsonNode), collectionType);
-        } catch (Exception e) {
-            throw new JacksonException("jackson get list error, json: {}, key: {}, type: {}", json, key, type, e);
-        }
-    }
+        CollectionType collectionType = OBJECT_MAPPER.getTypeFactory().constructCollectionType(ArrayList.class, type);
+        return from(castToString(jsonNode), collectionType);
+    }*/
 
     /**
      * 从json串中获取某个字段
      *
      * @return JsonNode, 默认为 null
      */
-    public static JsonNode getAsJsonObject(String json, String key) {
+    /*private static JsonNode getAsJsonObject(String json, String key) {
         try {
-            JsonNode node = mapper.readTree(json);
+            JsonNode node = OBJECT_MAPPER.readTree(json);
             if (null == node) {
                 return null;
             }
@@ -627,8 +544,8 @@ public class JacksonUtil {
             throw new JacksonException("jackson get object from json error, json: {}, key: {}", json, key, e);
         }
     }
-
-    public static JsonNode getAsJsonObject(ObjectNode json, String key) {
+*/
+    public static JsonNode getJsonNode(JsonNode json, String key) {
         if (null == json) {
             return null;
         }
@@ -640,15 +557,15 @@ public class JacksonUtil {
      *
      * @return json
      */
-    public static <V> String add(String json, String key, V value) {
+    /*public static <V> String add(String json, String key, V value) {
         try {
-            JsonNode node = mapper.readTree(json);
+            JsonNode node = OBJECT_MAPPER.readTree(json);
             ObjectNode add = add(node, key, value);
             return add.toString();
         } catch (IOException e) {
             throw new JacksonException("jackson add error, json: {}, key: {}, value: {}", json, key, value, e);
         }
-    }
+    }*/
 
     /**
      * 向json中添加属性
@@ -684,29 +601,29 @@ public class JacksonUtil {
      *
      * @return json
      */
-    public static String remove(String json, String key) {
+    /*public static String remove(String json, String key) {
         try {
-            JsonNode node = mapper.readTree(json);
+            JsonNode node = OBJECT_MAPPER.readTree(json);
             ((ObjectNode) node).remove(key);
             return node.toString();
         } catch (IOException e) {
             throw new JacksonException("jackson remove error, json: {}, key: {}", json, key, e);
         }
-    }
+    }*/
 
     /**
      * 修改json中的属性
      */
-    public static <V> String update(String json, String key, V value) {
+    /*public static <V> String update(String json, String key, V value) {
         try {
-            JsonNode node = mapper.readTree(json);
+            JsonNode node = OBJECT_MAPPER.readTree(json);
             ((ObjectNode) node).remove(key);
             add(node, key, value);
             return node.toString();
         } catch (IOException e) {
             throw new JacksonException("jackson update error, json: {}, key: {}, value: {}", json, key, value, e);
         }
-    }
+    }*/
 
     /**
      * 格式化Json(美化)
@@ -715,8 +632,8 @@ public class JacksonUtil {
      */
     public static String format(String json) {
         try {
-            JsonNode node = mapper.readTree(json);
-            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(node);
+            JsonNode node = OBJECT_MAPPER.readTree(json);
+            return OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(node);
         } catch (IOException e) {
             throw new JacksonException("jackson format json error, json: {}", json, e);
         }
@@ -729,7 +646,7 @@ public class JacksonUtil {
      */
     public static boolean isJson(String json) {
         try {
-            mapper.readTree(json);
+            OBJECT_MAPPER.readTree(json);
             return true;
         } catch (Exception e) {
             return false;
@@ -740,89 +657,6 @@ public class JacksonUtil {
         return cs == null || cs.length() == 0;
     }
 
-    private static boolean toBoolean(final String str) {
-        return toBooleanObject(str).equals(Boolean.TRUE);
-    }
-
-    private static Boolean toBooleanObject(final String str) {
-        // Previously used equalsIgnoreCase, which was fast for interned 'true'.
-        // Non interned 'true' matched 15 times slower.
-        //
-        // Optimisation provides same performance as before for interned 'true'.
-        // Similar performance for null, 'false', and other strings not length 2/3/4.
-        // 'true'/'TRUE' match 4 times slower, 'tRUE'/'True' 7 times slower.
-        if (str == TRUE) {
-            return Boolean.TRUE;
-        }
-        if (str == null) {
-            return null;
-        }
-        switch (str.length()) {
-            case 1: {
-                final char ch0 = str.charAt(0);
-                if (ch0 == 'y' || ch0 == 'Y' || ch0 == 't' || ch0 == 'T' || ch0 == '1') {
-                    return Boolean.TRUE;
-                }
-                if (ch0 == 'n' || ch0 == 'N' || ch0 == 'f' || ch0 == 'F' || ch0 == '0') {
-                    return Boolean.FALSE;
-                }
-                break;
-            }
-            case 2: {
-                final char ch0 = str.charAt(0);
-                final char ch1 = str.charAt(1);
-                if ((ch0 == 'o' || ch0 == 'O') && (ch1 == 'n' || ch1 == 'N')) {
-                    return Boolean.TRUE;
-                }
-                if ((ch0 == 'n' || ch0 == 'N') && (ch1 == 'o' || ch1 == 'O')) {
-                    return Boolean.FALSE;
-                }
-                break;
-            }
-            case 3: {
-                final char ch0 = str.charAt(0);
-                final char ch1 = str.charAt(1);
-                final char ch2 = str.charAt(2);
-                if ((ch0 == 'y' || ch0 == 'Y') && (ch1 == 'e' || ch1 == 'E') && (ch2 == 's' || ch2 == 'S')) {
-                    return Boolean.TRUE;
-                }
-                if ((ch0 == 'o' || ch0 == 'O') && (ch1 == 'f' || ch1 == 'F') && (ch2 == 'f' || ch2 == 'F')) {
-                    return Boolean.FALSE;
-                }
-                break;
-            }
-            case 4: {
-                final char ch0 = str.charAt(0);
-                final char ch1 = str.charAt(1);
-                final char ch2 = str.charAt(2);
-                final char ch3 = str.charAt(3);
-                if ((ch0 == 't' || ch0 == 'T') && (ch1 == 'r' || ch1 == 'R') && (ch2 == 'u' || ch2 == 'U') && (ch3 == 'e' || ch3 == 'E')) {
-                    return Boolean.TRUE;
-                }
-                break;
-            }
-            case 5: {
-                final char ch0 = str.charAt(0);
-                final char ch1 = str.charAt(1);
-                final char ch2 = str.charAt(2);
-                final char ch3 = str.charAt(3);
-                final char ch4 = str.charAt(4);
-                if ((ch0 == 'f' || ch0 == 'F') && (ch1 == 'a' || ch1 == 'A') && (ch2 == 'l' || ch2 == 'L') && (ch3 == 's' || ch3 == 'S') && (ch4 == 'e' || ch4 == 'E')) {
-                    return Boolean.FALSE;
-                }
-                break;
-            }
-            default:
-                break;
-        }
-
-        return null;
-    }
-
-    private static boolean toBoolean(final int value) {
-        return value != 0;
-    }
-
     /**
      * 将字符串转json
      *
@@ -831,7 +665,7 @@ public class JacksonUtil {
      */
     public static JsonNode readTree(String json) {
         try {
-            return mapper.readTree(json);
+            return OBJECT_MAPPER.readTree(json);
         } catch (IOException e) {
             throw new JacksonException("解析json字符串转失败:{}", json, e);
         }
@@ -857,4 +691,5 @@ public class JacksonUtil {
 
         return obj;
     }
+
 }

@@ -6,7 +6,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import java.io.IOException;
+import java.io.Serializable;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.*;
@@ -15,7 +17,7 @@ import java.util.*;
  * 临时过渡，请使用Jackson
  */
 @Deprecated
-public class JSONObject extends JSON {
+public class JSONObject extends JSON implements Map<String, Object>, Cloneable, Serializable, InvocationHandler {
 
     private static final long serialVersionUID = 1L;
 
@@ -51,22 +53,32 @@ public class JSONObject extends JSON {
         _objectNode = new ObjectNode(jsonNodeFactory, kids);
     }
 
+    @Override
     public int size() {
         return _objectNode.size();
     }
 
+    @Override
     public boolean isEmpty() {
         return _objectNode.isEmpty();
     }
 
+    @Override
     public boolean containsKey(Object key) {
         return _objectNode.has(Objects.toString(key));
     }
 
-    public Object get(Object key) {
-        return JacksonUtil.getAsObject(_objectNode, Objects.toString(key), Object.class);
+    @Override
+    public boolean containsValue(Object value) {
+        return false;
     }
 
+    @Override
+    public Object get(Object key) {
+        return JacksonUtil.getObject(_objectNode, Objects.toString(key), Object.class);
+    }
+
+    @Override
     public Object getOrDefault(Object key, Object defaultValue) {
         Object v;
         return ((v = get(key)) != null) ? v : defaultValue;
@@ -91,7 +103,7 @@ public class JSONObject extends JSON {
     }
 
     public <T> T getObject(String key, Class<T> clazz) {
-        return JacksonUtil.getAsObject(_objectNode, key, clazz);
+        return JacksonUtil.getObject(_objectNode, key, clazz);
     }
 
   /*  public <T> T getObject(String key, Type type) {
@@ -107,206 +119,90 @@ public class JSONObject extends JSON {
     }*/
 
     public Boolean getBoolean(String key) {
-        JsonNode value = _objectNode.get(key);
-
-        if (value == null) {
-            return null;
-        }
-
-        return value.asBoolean();
-    }
-
-    public byte[] getBytes(String key) {
-        JsonNode value = _objectNode.get(key);
-
-        if (value == null) {
-            return null;
-        }
-
-        try {
-            return value.binaryValue();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        return JacksonUtil.getBoolean(_objectNode, key);
     }
 
     public boolean getBooleanValue(String key) {
-        Boolean booleanVal = getBoolean(key);
+        Boolean value = getBoolean(key);
 
-        if (booleanVal == null) {
+        if (value == null) {
             return false;
         }
 
-        return booleanVal.booleanValue();
+        return value;
     }
 
-    public Byte getByte(String key) {
-        byte[] bytes = getBytes(key);
-        if (bytes != null && bytes.length > 0) {
-            return bytes[0];
-        }
+    public byte[] getBytes(String key) {
+        return JacksonUtil.getBytes(_objectNode, key);
+    }
 
-        return null;
+
+    public Byte getByte(String key) {
+        return JacksonUtil.getByte(_objectNode, key);
     }
 
     public byte getByteValue(String key) {
-        Byte byteVal = getByte(key);
-        if (byteVal == null) {
-            return 0;
-        }
+        Byte value = getByte(key);
 
-        return byteVal.byteValue();
+        return value == null ? 0 : value;
     }
 
     public Short getShort(String key) {
-        Integer integer = getInteger(key);
-        if (integer == null) {
-            return null;
-        }
-
-        return integer.shortValue();
+        return JacksonUtil.getShort(_objectNode, key);
     }
 
     public short getShortValue(String key) {
-        Short shortVal = getShort(key);
-        if (shortVal == null) {
-            return 0;
-        }
+        Short value = getShort(key);
 
-        return shortVal.shortValue();
+        return value == null ? 0 : value;
     }
 
     public Integer getInteger(String key) {
-        JsonNode value = _objectNode.get(key);
-        if (value == null) {
-            return null;
-        }
-
-        if (value.isInt()) {
-            return value.intValue();
-        }
-
-        if (value.canConvertToInt()) {
-            return value.asInt();
-        }
-
-        return null;
+        return JacksonUtil.getInteger(_objectNode, key);
     }
 
     public int getIntValue(String key) {
-        return JacksonUtil.getAsInt(_objectNode, key);
+        Integer value = getInteger(key);
+        return value == null ? 0 : value;
     }
 
     public Long getLong(String key) {
-        JsonNode value = _objectNode.get(key);
-        if (value == null) {
-            return null;
-        }
-
-        if (value.isLong()) {
-            return value.longValue();
-        }
-
-        if (value.canConvertToLong()) {
-            return value.asLong();
-        }
-
-        return null;
+        return JacksonUtil.getLong(_objectNode, key);
     }
 
     public long getLongValue(String key) {
-        Long longVal = getLong(key);
-
-        if (longVal == null) {
-            return 0;
-        }
-
-        return longVal.intValue();
+        Long value = getLong(key);
+        return value == null ? 0 : value;
     }
 
     public Float getFloat(String key) {
-        JsonNode value = _objectNode.get(key);
-        if (value == null) {
-            return null;
-        }
-
-        if (value.isFloat()) {
-            return value.floatValue();
-        }
-
-        return null;
+        return JacksonUtil.getFloat(_objectNode, key);
     }
 
     public float getFloatValue(String key) {
         Float floatValue = getFloat(key);
-
-        if (floatValue == null) {
-            return 0F;
-        }
-
-        return floatValue;
+        return floatValue == null ? 0.0F : floatValue;
     }
 
     public Double getDouble(String key) {
-        JsonNode value = _objectNode.get(key);
-        if (value == null) {
-            return null;
-        }
-
-        if (value.isDouble()) {
-            return value.doubleValue();
-        }
-
-        return null;
+        return JacksonUtil.getDouble(_objectNode, key);
     }
 
     public double getDoubleValue(String key) {
-        Double doubleValue = getDouble(key);
-
-        if (doubleValue == null) {
-            return 0D;
-        }
-
-        return doubleValue.doubleValue();
+        Double value = getDouble(key);
+        return value == null ? 0.0 : value;
     }
 
     public BigDecimal getBigDecimal(String key) {
-        JsonNode value = _objectNode.get(key);
-
-        if (value == null) {
-            return null;
-        }
-
-        if (value.isBigDecimal()) {
-            return value.decimalValue();
-        }
-
-        return null;
+        return JacksonUtil.getBigDecimal(_objectNode, key);
     }
 
     public BigInteger getBigInteger(String key) {
-        JsonNode value = _objectNode.get(key);
-
-        if (value == null) {
-            return null;
-        }
-
-        if (value.isBigInteger()) {
-            return value.bigIntegerValue();
-        }
-
-        return null;
+        return JacksonUtil.getBigInteger(_objectNode, key);
     }
 
-
     public String getString(String key) {
-        JsonNode value = _objectNode.get(key);
-
-        if (value == null) {
-            return null;
-        }
-
-        return value.toString();
+        return JacksonUtil.getString(_objectNode, key);
     }
 /*
 
@@ -336,6 +232,7 @@ public class JSONObject extends JSON {
         return castToTimestamp(value);
     }*/
 
+    @Override
     public Object put(String key, Object value) {
         return JacksonUtil.add(_objectNode, key, value);
     }
@@ -345,6 +242,7 @@ public class JSONObject extends JSON {
         return this;
     }
 
+    @Override
     public void putAll(Map<? extends String, ?> m) {
         for (Map.Entry<? extends String, ?> entry : m.entrySet()) {
             JacksonUtil.add(_objectNode, entry.getKey(), entry.getValue());
@@ -356,6 +254,7 @@ public class JSONObject extends JSON {
         return this;
     }
 
+    @Override
     public void clear() {
         _objectNode.removeAll();
     }
@@ -365,6 +264,7 @@ public class JSONObject extends JSON {
         return this;
     }
 
+    @Override
     public Object remove(Object key) {
         return _objectNode.remove(Objects.toString(key));
     }
@@ -374,14 +274,17 @@ public class JSONObject extends JSON {
         return this;
     }
 
+    @Override
     public Set<String> keySet() {
         return thisToMap().keySet();
     }
 
+    @Override
     public Collection<Object> values() {
         return thisToMap().values();
     }
 
+    @Override
     public Set<Map.Entry<String, Object>> entrySet() {
         return thisToMap().entrySet();
     }
@@ -514,6 +417,7 @@ public class JSONObject extends JSON {
     }
 */
 
+    @Override
     public <T> T toJavaObject(Class<T> clazz) {
         return JacksonUtil.from(_objectNode, clazz);
     }
@@ -521,6 +425,10 @@ public class JSONObject extends JSON {
     public <T> T toJavaObject(Class<T> clazz, ParserConfig config, int features) {
         // TODO: zhangzhliang@yonyou.com 2023/5/29 解析配置
         return JacksonUtil.from(_objectNode, clazz);
+    }
 
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        return null;
     }
 }

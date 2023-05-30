@@ -5,10 +5,10 @@ import com.alibaba.fastjson.util.JacksonUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
+import java.io.Serializable;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -24,15 +24,13 @@ import java.util.stream.Collectors;
  * 请使用Jackson
  */
 @Deprecated
-public class JSONArray extends JSON implements List<Object> {
+public class JSONArray extends JSON implements List<Object>, Cloneable, RandomAccess, Serializable {
     private final ArrayNode _arrayNode;
     private static final Pattern NUMBER_WITH_TRAILING_ZEROS_PATTERN = Pattern.compile("\\.0*$");
-    private static final long serialVersionUID = 7031906528012587403L;
+    private static final long serialVersionUID = 1L;
     private static final String DEFAULT_ZERO = "0";
     protected transient Object relatedArray;
     protected transient Type componentType;
-
-    private ObjectMapper mapper = new ObjectMapper();
 
     public JSONArray() {
         this(JsonNodeFactory.instance);
@@ -45,7 +43,7 @@ public class JSONArray extends JSON implements List<Object> {
 
 
         List<JsonNode> collect = list.stream().map(x -> {
-            JsonNode jsonNode = mapper.valueToTree(x);
+            JsonNode jsonNode = JacksonUtil.getObjectMapper().valueToTree(x);
             return jsonNode;
         }).collect(Collectors.toList());
         _arrayNode = new ArrayNode(JsonNodeFactory.instance, collect);
@@ -210,7 +208,7 @@ public class JSONArray extends JSON implements List<Object> {
 
     public JSONArray getJSONArray(int index) {
         try {
-            JsonNode jn = mapper.readValue(get(index).asText(), JsonNode.class);
+            JsonNode jn = JacksonUtil.getObjectMapper().readValue(get(index).asText(), JsonNode.class);
             JSONArray ja = new JSONArray(JsonNodeFactory.instance);
             ja.add(jn);
             return ja;
@@ -459,10 +457,6 @@ public class JSONArray extends JSON implements List<Object> {
     @Override
     public int lastIndexOf(Object o) {
         return 0;
-    }
-
-    public ObjectMapper getMapper() {
-        return this.mapper;
     }
 
     public String toJSONString() {
