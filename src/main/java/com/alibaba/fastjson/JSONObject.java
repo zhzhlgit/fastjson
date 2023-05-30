@@ -86,20 +86,28 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
 
     public JSONObject getJSONObject(String key) {
         JsonNode jn = _objectNode.findValue(key);
-        Iterator<Map.Entry<String, JsonNode>> iterator = jn.fields();
-        Map<String, JsonNode> kids = new HashMap<>();
-        for (Iterator<Map.Entry<String, JsonNode>> it = iterator; it.hasNext(); ) {
-            Map.Entry<String, JsonNode> entry = it.next();
-            kids.put(entry.getKey(), entry.getValue().deepCopy());
-        }
-        return new JSONObject(JsonNodeFactory.instance, kids);
+        return jsonNodeToJSONObject(jn);
     }
 
     public JSONArray getJSONArray(String key) {
         JsonNode jn = _objectNode.findValue(key);
+        return jsonNodeToJSONArray(jn);
+    }
+
+    private static JSONArray jsonNodeToJSONArray(JsonNode jn) {
         List<JsonNode> children = new ArrayList<>();
         children.add(jn);
         return new JSONArray(JsonNodeFactory.instance, children);
+    }
+
+    private static JSONObject jsonNodeToJSONObject(JsonNode jn) {
+        Iterator<Entry<String, JsonNode>> iterator = jn.fields();
+        Map<String, JsonNode> kids = new HashMap<>();
+        for (Iterator<Entry<String, JsonNode>> it = iterator; it.hasNext(); ) {
+            Entry<String, JsonNode> entry = it.next();
+            kids.put(entry.getKey(), entry.getValue().deepCopy());
+        }
+        return new JSONObject(JsonNodeFactory.instance, kids);
     }
 
     public <T> T getObject(String key, Class<T> clazz) {
