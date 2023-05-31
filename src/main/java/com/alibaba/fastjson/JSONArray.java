@@ -62,6 +62,10 @@ public class JSONArray extends JSON implements List<Object>, Cloneable, RandomAc
         _arrayNode = new ArrayNode(nf, children);
     }
 
+    public JSONArray(JsonNode jsonNode) {
+        _arrayNode = jsonNode.deepCopy();
+    }
+
     /**
      * @return
      * @since 1.1.16

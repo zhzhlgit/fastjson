@@ -27,6 +27,9 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
         this(false);
     }
 
+    public JSONObject(JsonNode jsonNode) {
+        _objectNode = jsonNode.deepCopy();
+    }
 
     public JSONObject(Map<String, JsonNode> map) {
         if (map == null) {

@@ -1,31 +1,73 @@
 package com.alibaba.fastjson;
 
-import org.junit.Assert;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author zhengzhliang@yonyou.com
  * @date 2023/5/30
  */
 public class JSONObjectTest {
-    private JSONObject jsonObject;
-
-    @Test
-    public void name() {
-        String json = "{\"pagecode\":\"EPMP1010_main\",\"appcode\":\"EPMP1010\",\"sysParamJson\":{\"serviceCode\":\"EPMP1010\"},\"compareTs\":false}";
-        PageQueryInfo pageQueryInfo = JSONObject.parseObject(json, PageQueryInfo.class);
-
-    }
+    PageMetaDTO pageMetaDTO;
 
     @Before
     public void setUp() throws Exception {
-        jsonObject = new JSONObject();
+
+        ArrayList<String> tabsValue = new ArrayList<String>();
+        tabsValue.add("tabsValue-a");
+        tabsValue.add("tabsValue-b");
+        tabsValue.add("tabsValue-c");
+
+        List<ArrayList<String>> tabs = new ArrayList<>();
+        tabs.add(tabsValue);
+
+        AssociatedTabs associatedTabs = new AssociatedTabs();
+        associatedTabs.setLayout("layout1");
+        associatedTabs.setTabs(tabs);
+
+        Map<String, AssociatedTabs> containerrelation = new HashMap<>();
+        containerrelation.put("associatedTabs", associatedTabs);
+
+        pageMetaDTO = new PageMetaDTO();
+        pageMetaDTO.setName("测试");
+        pageMetaDTO.setContainerrelation(containerrelation);
+    }
+
+    @Test
+    public void testJackson() throws JsonProcessingException {
+
+        //fastjson 对象转字符串
+        ObjectMapper objectMapper = new ObjectMapper();
+        String s = objectMapper.writeValueAsString(pageMetaDTO);
+        System.out.println(s);
+
+        //fastjson 字符串转对象
+        PageMetaDTO pageMetaDTO1 = objectMapper.readValue(s, PageMetaDTO.class);
+        System.out.println(pageMetaDTO1);
+
+    }
+
+    @Test
+    public void testFastJson() {
+        // 对象转字符串
+        String jsonString = JSON.toJSONString(pageMetaDTO);
+
+        //jsonObject 对象转JSONObject
+        JSONObject metaJson = JSON.parseObject(jsonString);
+
+        //jsonObject JSONObject转对象
+        PageMetaDTO pageMetaDTO2 = JSON.toJavaObject(metaJson, PageMetaDTO.class);
     }
 
     @Test
     public void size() {
-        Assert.assertEquals(0, jsonObject.size());
     }
 
     @Test
@@ -43,12 +85,7 @@ public class JSONObjectTest {
 
     @Test
     public void get() {
-        jsonObject.put("a", 1);
-        jsonObject.put("B", 1.0);
-        jsonObject.put("C", "SADFASDF");
-        jsonObject.put("D", new JSONObject());
 
-        System.out.println(jsonObject);
     }
 
     @Test

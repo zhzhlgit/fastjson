@@ -1,5 +1,7 @@
 package com.alibaba.fastjson.util;
 
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.exception.JacksonException;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -88,6 +90,9 @@ public class JacksonUtil {
         objectMapper.enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY);
         //禁止使用int代表Enum的order()來反序列化Enum, 抛出异常
         objectMapper.enable(DeserializationFeature.FAIL_ON_NUMBERS_FOR_ENUMS);
+
+//        objectMapper.activateDefaultTypingAsProperty(null, ObjectMapper.DefaultTyping.NON_FINAL, "$type");
+
         //有属性不能映射的时候不报错
         objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         //对象为空时不抛异常
@@ -170,7 +175,17 @@ public class JacksonUtil {
         if (isEmpty(json)) {
             return null;
         }
+
+
         try {
+            if (type == JSONObject.class) {
+                JsonNode jsonNode = OBJECT_MAPPER.readTree(json);
+                return (V) new JSONObject(jsonNode);
+            } else if (type == JSONArray.class) {
+                JsonNode jsonNode = OBJECT_MAPPER.readTree(json);
+                return (V) new JSONArray(jsonNode);
+            }
+
             JavaType javaType = OBJECT_MAPPER.getTypeFactory().constructType(type);
             return OBJECT_MAPPER.readValue(json, javaType);
         } catch (IOException e) {
