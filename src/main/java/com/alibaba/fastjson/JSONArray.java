@@ -2,11 +2,10 @@ package com.alibaba.fastjson;
 
 import com.alibaba.fastjson.exception.JacksonException;
 import com.alibaba.fastjson.util.JacksonUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.Serializable;
 import java.lang.reflect.Type;
@@ -33,7 +32,7 @@ public class JSONArray extends JSON implements List<Object>, Cloneable, RandomAc
     protected transient Type componentType;
 
     public JSONArray() {
-        this(JsonNodeFactory.instance);
+        _arrayNode = new ArrayNode(JsonNodeFactory.instance);
     }
 
     public JSONArray(List<Object> list) {
@@ -41,29 +40,19 @@ public class JSONArray extends JSON implements List<Object>, Cloneable, RandomAc
             throw new IllegalArgumentException("list is null.");
         }
 
-
         List<JsonNode> collect = list.stream().map(x -> {
             JsonNode jsonNode = JacksonUtil.getObjectMapper().valueToTree(x);
             return jsonNode;
         }).collect(Collectors.toList());
         _arrayNode = new ArrayNode(JsonNodeFactory.instance, collect);
-
     }
 
-    public JSONArray(JsonNodeFactory nf) {
-        _arrayNode = new ArrayNode(JsonNodeFactory.instance);
+    public JSONArray(int initialCapacity) {
+        _arrayNode = new ArrayNode(JsonNodeFactory.instance, initialCapacity);
     }
 
-    public JSONArray(JsonNodeFactory nf, int capacity) {
-        _arrayNode = new ArrayNode(nf, capacity);
-    }
-
-    public JSONArray(JsonNodeFactory nf, List<JsonNode> children) {
-        _arrayNode = new ArrayNode(nf, children);
-    }
-
-    public JSONArray(JsonNode jsonNode) {
-        _arrayNode = jsonNode.deepCopy();
+    public JSONArray(JsonNode arrayNode) {
+        _arrayNode = arrayNode.deepCopy();
     }
 
     /**
@@ -88,140 +77,203 @@ public class JSONArray extends JSON implements List<Object>, Cloneable, RandomAc
 
     @Override
     public int size() {
-        return 0;
+        return _arrayNode.size();
     }
 
     @Override
     public boolean isEmpty() {
-        return false;
+        return _arrayNode.isEmpty();
     }
 
     @Override
     public boolean contains(Object o) {
-        return false;
+        return _arrayNode.has(Objects.toString(o));
     }
 
     @Override
     public Iterator<Object> iterator() {
-        return null;
+        return thisToList().iterator();
+    }
+
+    private List<Object> thisToList() {
+        List<Object> list = new ArrayList<>(_arrayNode.size());
+        Iterator<JsonNode> iterator = _arrayNode.iterator();
+        while (iterator.hasNext()) {
+            list.add(JacksonUtil.jsonNodeToJSONObject(iterator.next()));
+        }
+        return list;
     }
 
     @Override
     public Object[] toArray() {
-        Object[] objects = new Object[_arrayNode.size()];
-        Iterator<JsonNode> iterator = _arrayNode.elements();
-        int index = 0;
-        while (iterator.hasNext()) {
-            Object o = iterator.next();
-            objects[index] = o;
-            index++;
-        }
-        return objects;
+        return thisToList().toArray();
     }
 
 
     @Override
     public <T> T[] toArray(T[] a) {
-        Object[] elementData = toArray();
-        if (a.length < _arrayNode.size())
-        // Make a new array of a's runtime type, but my contents:
-        {
-            return (T[]) Arrays.copyOf(elementData, _arrayNode.size(), a.getClass());
-        }
-        System.arraycopy(elementData, 0, a, 0, _arrayNode.size());
-        if (a.length > _arrayNode.size()) {
-            a[_arrayNode.size()] = null;
-        }
-        return a;
+        return thisToList().toArray(a);
     }
 
     @Override
     public boolean add(Object o) {
-        return false;
+        try {
+            _arrayNode.add(JacksonUtil.convert(o, ObjectNode.class));
+            return true;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public JSONArray fluentAdd(Object e) {
+        this.add(e);
+        return this;
     }
 
     @Override
     public boolean remove(Object o) {
-        return false;
+        // TODO: zhangzhliang@yonyou.com 2023/5/31 for循环删除
+        throw new RuntimeException("");
+    }
+
+    public JSONArray fluentRemove(Object o) {
+        this.remove(o);
+        return this;
     }
 
     @Override
     public boolean containsAll(Collection<?> c) {
-        return false;
+        // TODO: zhangzhliang@yonyou.com 2023/5/31
+        throw new RuntimeException("");
     }
 
     @Override
     public boolean addAll(Collection<?> c) {
-        return false;
+        List<JsonNode> collect = c.stream().map(x -> JacksonUtil.convert(x, JsonNode.class)).collect(Collectors.toList());
+        _arrayNode.addAll(collect);
+        return true;
+    }
+
+    public JSONArray fluentAddAll(Collection<?> c) {
+        this.addAll(c);
+        return this;
     }
 
     @Override
     public boolean addAll(int index, Collection<?> c) {
-        return false;
+        throw new RuntimeException("");
+    }
+
+    public JSONArray fluentAddAll(int index, Collection<?> c) {
+        throw new RuntimeException("");
     }
 
     @Override
     public boolean removeAll(Collection<?> c) {
-        return false;
+// TODO: zhangzhliang@yonyou.com 2023/5/31
+        throw new RuntimeException("");
+    }
+
+    public JSONArray fluentRemoveAll(Collection<?> c) {
+        this.removeAll(c);
+        return this;
     }
 
     @Override
     public boolean retainAll(Collection<?> c) {
-        return false;
+// TODO: zhangzhliang@yonyou.com 2023/5/31
+        throw new RuntimeException("");
     }
 
     @Override
     public void clear() {
+        _arrayNode.removeAll();
+    }
 
+    public JSONArray fluentClear() {
+        this.clear();
+        return this;
+    }
+
+    @Override
+    public Object set(int index, Object element) {
+        JsonNode jsonNode = _arrayNode.set(index, JacksonUtil.convert(element, ObjectNode.class));
+        if (null == jsonNode) {
+            return null;
+        }
+
+        return JacksonUtil.convert(jsonNode, element.getClass());
+    }
+
+    public JSONArray fluentSet(int index, Object element) {
+        this.set(index, element);
+        return this;
+    }
+
+    @Override
+    public void add(int index, Object element) {
+        _arrayNode.insert(index, JacksonUtil.convert(element, ObjectNode.class));
+    }
+
+    public JSONArray fluentAdd(int index, Object element) {
+        this.add(index, element);
+        return this;
+    }
+
+    @Override
+    public Object remove(int index) {
+        JsonNode remove = _arrayNode.remove(index);
+        return remove.deepCopy();
+    }
+
+    public JSONArray fluentRemove(int index) {
+        this.remove(index);
+        return this;
+    }
+
+    @Override
+    public int indexOf(Object o) {
+        throw new RuntimeException("");
+    }
+
+    @Override
+    public int lastIndexOf(Object o) {
+        throw new RuntimeException("");
     }
 
     @Override
     public ListIterator<Object> listIterator() {
-        List<Object> list = new ArrayList<>(_arrayNode.size());
-        Iterator<JsonNode> elements = _arrayNode.elements();
-        while (elements.hasNext()) {
-            list.add(elements.next());
-        }
+        List<Object> list = thisToList();
         return list.listIterator();
     }
 
 
     @Override
     public ListIterator<Object> listIterator(int index) {
-        return null;
+        throw new RuntimeException("");
     }
 
 
     @Override
     public List<Object> subList(int fromIndex, int toIndex) {
-        return null;
+        throw new RuntimeException("");
     }
 
 
     public JSONObject getJSONObject(int index) {
-        //              ObjectNode objectNode=mapper.readValue(get(index).asText(),ObjectNode.class);
         JsonNode jsonNode = _arrayNode.get(index);
-        Iterator<Map.Entry<String, JsonNode>> iterator = jsonNode.fields();
-        Map<String, JsonNode> kids = new HashMap<>();
-        for (Iterator<Map.Entry<String, JsonNode>> it = iterator; it.hasNext(); ) {
-            Map.Entry<String, JsonNode> entry = it.next();
-            kids.put(entry.getKey(), entry.getValue().deepCopy());
+        if (jsonNode == null) {
+            return null;
         }
-        return new JSONObject(JsonNodeFactory.instance, kids);
+        return new JSONObject(jsonNode);
     }
 
     public JSONArray getJSONArray(int index) {
-        try {
-            JsonNode jn = JacksonUtil.getObjectMapper().readValue(get(index).asText(), JsonNode.class);
-            JSONArray ja = new JSONArray(JsonNodeFactory.instance);
-            ja.add(jn);
-            return ja;
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
+        JsonNode jsonNode = get(index);
+        if (jsonNode == null) {
+            return null;
         }
-        return null;
+        return new JSONArray(jsonNode);
     }
 
     public <T> T getObject(int index, Class<T> clazz) {
@@ -293,16 +345,13 @@ public class JSONArray extends JSON implements List<Object>, Cloneable, RandomAc
         }
         String format;
         final int len = value.length();
-        if (len == JSON.DEFFAULT_DATE_FORMAT.length()
-                || (len == 22 && JSON.DEFFAULT_DATE_FORMAT.equals("yyyyMMddHHmmssSSSZ"))) {
+        if (len == JSON.DEFFAULT_DATE_FORMAT.length() || (len == 22 && JSON.DEFFAULT_DATE_FORMAT.equals("yyyyMMddHHmmssSSSZ"))) {
             format = JSON.DEFFAULT_DATE_FORMAT;
         } else if (len == 10) {
             format = "yyyy-MM-dd";
         } else if (len == "yyyy-MM-dd HH:mm:ss".length()) {
             format = "yyyy-MM-dd HH:mm:ss";
-        } else if (len == 29
-                && value.charAt(26) == ':'
-                && value.charAt(28) == '0') {
+        } else if (len == 29 && value.charAt(26) == ':' && value.charAt(28) == '0') {
             format = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
         } else if (len == 23 && value.charAt(19) == ',') {
             format = "yyyy-MM-dd HH:mm:ss,SSS";
@@ -436,52 +485,6 @@ public class JSONArray extends JSON implements List<Object>, Cloneable, RandomAc
     @Override
     public JsonNode get(int index) {
         return _arrayNode.get(index);
-    }
-
-    @Override
-    public Object set(int index, Object element) {
-        return null;
-    }
-
-    @Override
-    public void add(int index, Object element) {
-
-    }
-
-    @Override
-    public Object remove(int index) {
-        return null;
-    }
-
-    @Override
-    public int indexOf(Object o) {
-        return 0;
-    }
-
-    @Override
-    public int lastIndexOf(Object o) {
-        return 0;
-    }
-
-    public String toJSONString() {
-        return toString();
-    }
-
-
-    public static JSONObject parseObject(String text) {
-        return JacksonUtil.from(text, JSONObject.class);
-    }
-
-    public static <T> T parseObject(String text, Class<T> clazz) {
-        return JacksonUtil.from(text, clazz);
-    }
-
-    public static JSONArray parseArray(String text) {
-        return JSON.parseArray(text);
-    }
-
-    public static <T> List<T> parseArray(String text, Class<T> clazz) {
-        return JacksonUtil.fromList(text, clazz);
     }
 
 }

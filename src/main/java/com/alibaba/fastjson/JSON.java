@@ -6,16 +6,18 @@ import com.alibaba.fastjson.util.JacksonUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.*;
 
 /**
  * 请使用Jackson
+ *
+ * @author zhzhl
  */
 @Deprecated
-public abstract class JSON {
+public abstract class JSON implements JSONStreamAware, JSONAware {
 
     protected static final TimeZone defaultTimeZone = TimeZone.getDefault();
     protected static final Locale defaultLocale = Locale.getDefault();
@@ -42,7 +44,7 @@ public abstract class JSON {
         try {
             JsonNode jn = JacksonUtil.getObjectMapper().readTree(text);
             if (jn.isArray()) {
-                JSONArray ja = new JSONArray(JsonNodeFactory.instance);
+                JSONArray ja = new JSONArray();
                 ArrayNode an = (ArrayNode) jn;
                 for (JsonNode j : an) {
                     ja.add(j);
@@ -61,9 +63,23 @@ public abstract class JSON {
     }
 
     public static String toJSONString(Object object) {
-        return JacksonUtil.toJson(object);
+        return JacksonUtil.to(object);
     }
 
+    @Override
+    public String toString() {
+        return this.toJSONString();
+    }
+
+    @Override
+    public String toJSONString() {
+        return toJSONString(this);
+    }
+
+    @Override
+    public void writeJSONString(Appendable out) throws IOException {
+
+    }
 
     public static <T> T toJavaObject(String json, Class<T> clazz) {
         return JacksonUtil.from(json, clazz);
@@ -114,7 +130,7 @@ public abstract class JSON {
                 jsonObject.put(entry.getKey(), mapToJsonObject((Map<String, Object>) value));
             } else if (value instanceof List) {
                 final List listVal = (List) value;
-                JSONArray objects = new JSONArray(JsonNodeFactory.instance, listVal.size());
+                JSONArray objects = new JSONArray(listVal.size());
                 for (Object o : listVal) {
                     if (o instanceof Map) {
                         objects.add(mapToJsonObject((Map<String, Object>) o));

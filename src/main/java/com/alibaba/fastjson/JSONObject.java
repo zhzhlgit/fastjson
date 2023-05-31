@@ -3,8 +3,10 @@ package com.alibaba.fastjson;
 import com.alibaba.fastjson.parser.ParserConfig;
 import com.alibaba.fastjson.util.JacksonUtil;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
@@ -28,7 +30,12 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
     }
 
     public JSONObject(JsonNode jsonNode) {
-        _objectNode = jsonNode.deepCopy();
+        if (jsonNode instanceof TextNode) {
+            TextNode node = (TextNode) jsonNode;
+            _objectNode = JacksonUtil.from(node.asText(), ObjectNode.class);
+        } else {
+            _objectNode = jsonNode.deepCopy();
+        }
     }
 
     public JSONObject(Map<String, JsonNode> map) {
@@ -89,18 +96,25 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
 
     public JSONObject getJSONObject(String key) {
         JsonNode jn = _objectNode.findValue(key);
-        return jsonNodeToJSONObject(jn);
+
+        if (jn == null) {
+            return null;
+        }
+        return new JSONObject(jn);
     }
 
     public JSONArray getJSONArray(String key) {
         JsonNode jn = _objectNode.findValue(key);
-        return jsonNodeToJSONArray(jn);
+        if (jn == null) {
+            return null;
+        }
+
+        return new JSONArray(jn);
     }
 
-    private static JSONArray jsonNodeToJSONArray(JsonNode jn) {
-        List<JsonNode> children = new ArrayList<>();
-        children.add(jn);
-        return new JSONArray(JsonNodeFactory.instance, children);
+    /*private static JSONArray jsonNodeToJSONArray(JsonNode jn) {
+        ArrayNode jsonNodes = jn.deepCopy();
+        return new JSONArray(jsonNodes);
     }
 
     private static JSONObject jsonNodeToJSONObject(JsonNode jn) {
@@ -111,7 +125,7 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
             kids.put(entry.getKey(), entry.getValue().deepCopy());
         }
         return new JSONObject(JsonNodeFactory.instance, kids);
-    }
+    }*/
 
     public <T> T getObject(String key, Class<T> clazz) {
         return JacksonUtil.getObject(_objectNode, key, clazz);
@@ -306,7 +320,14 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
         Iterator<Map.Entry<String, JsonNode>> fields = _objectNode.fields();
         while (fields.hasNext()) {
             Map.Entry<String, JsonNode> next = fields.next();
-            map.put(next.getKey(), next.getValue());
+            JsonNode value = next.getValue();
+            if (value instanceof ObjectNode) {
+                map.put(next.getKey(), new JSONObject(value));
+            } else if (value instanceof ArrayNode) {
+                map.put(next.getKey(), new JSONArray((ArrayNode) value));
+            } else {
+                map.put(next.getKey(), value);
+            }
         }
         return map;
     }

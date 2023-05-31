@@ -130,19 +130,19 @@ public class JacksonUtil {
      * @param obj
      * @return
      */
-    public static String toJson(Object obj) {
+    /*public static String toJson(Object obj) {
         try {
             return OBJECT_MAPPER.writeValueAsString(obj);
         } catch (JsonProcessingException e) {
             throw new JacksonException("转json字符串失败:{}", obj, e);
         }
-    }
+    }*/
 
 
     /**
      * 序列化为JSON
      */
-    public static <V> String toJson(List<V> list) {
+    public static <V> String to(List<V> list) {
         try {
             return OBJECT_MAPPER.writeValueAsString(list);
         } catch (JsonProcessingException e) {
@@ -161,6 +161,11 @@ public class JacksonUtil {
         }
     }
 
+    public static <V> V convert(Object obj, Class<V> type) {
+        return OBJECT_MAPPER.convertValue(obj, type);
+    }
+
+
     /**
      * JSON反序列化
      */
@@ -176,14 +181,18 @@ public class JacksonUtil {
             return null;
         }
 
-
         try {
             if (type == JSONObject.class) {
                 JsonNode jsonNode = OBJECT_MAPPER.readTree(json);
                 return (V) new JSONObject(jsonNode);
             } else if (type == JSONArray.class) {
-                JsonNode jsonNode = OBJECT_MAPPER.readTree(json);
-                return (V) new JSONArray(jsonNode);
+                List<Object> list = new ArrayList<>();
+                JSONArray jsonArray = (JSONArray) type;
+                for (Object o : jsonArray) {
+                    list.add(o);
+                }
+
+                return (V) new JSONArray(list);
             }
 
             JavaType javaType = OBJECT_MAPPER.getTypeFactory().constructType(type);
@@ -585,29 +594,30 @@ public class JacksonUtil {
     /**
      * 向json中添加属性
      */
-    public static <V> ObjectNode add(JsonNode jsonNode, String key, V value) {
+    public static <V> ObjectNode add(ObjectNode jsonNode, String key, V value) {
         if (value instanceof String) {
-            return ((ObjectNode) jsonNode).put(key, (String) value);
+            return jsonNode.put(key, (String) value);
         } else if (value instanceof Short) {
-            return ((ObjectNode) jsonNode).put(key, (Short) value);
+            return jsonNode.put(key, (Short) value);
         } else if (value instanceof Integer) {
-            return ((ObjectNode) jsonNode).put(key, (Integer) value);
+            return jsonNode.put(key, (Integer) value);
         } else if (value instanceof Long) {
-            return ((ObjectNode) jsonNode).put(key, (Long) value);
+            return jsonNode.put(key, (Long) value);
         } else if (value instanceof Float) {
-            return ((ObjectNode) jsonNode).put(key, (Float) value);
+            return jsonNode.put(key, (Float) value);
         } else if (value instanceof Double) {
-            return ((ObjectNode) jsonNode).put(key, (Double) value);
+            return jsonNode.put(key, (Double) value);
         } else if (value instanceof BigDecimal) {
-            return ((ObjectNode) jsonNode).put(key, (BigDecimal) value);
+            return jsonNode.put(key, (BigDecimal) value);
         } else if (value instanceof BigInteger) {
-            return ((ObjectNode) jsonNode).put(key, (BigInteger) value);
+            return jsonNode.put(key, (BigInteger) value);
         } else if (value instanceof Boolean) {
-            return ((ObjectNode) jsonNode).put(key, (Boolean) value);
+            return jsonNode.put(key, (Boolean) value);
         } else if (value instanceof byte[]) {
-            return ((ObjectNode) jsonNode).put(key, (byte[]) value);
+            return jsonNode.put(key, (byte[]) value);
         } else {
-            return ((ObjectNode) jsonNode).put(key, to(value));
+//            return jsonNode.put(key, to(value));
+            return jsonNode.putPOJO(key, value);
         }
     }
 
@@ -705,6 +715,16 @@ public class JacksonUtil {
         }
 
         return obj;
+    }
+
+    public static JSONObject jsonNodeToJSONObject(JsonNode jn) {
+        Iterator<Map.Entry<String, JsonNode>> iterator = jn.fields();
+        Map<String, JsonNode> kids = new HashMap<>();
+        while (iterator.hasNext()) {
+            Map.Entry<String, JsonNode> entry = iterator.next();
+            kids.put(entry.getKey(), entry.getValue().deepCopy());
+        }
+        return new JSONObject(kids);
     }
 
 }
