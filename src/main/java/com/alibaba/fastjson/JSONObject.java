@@ -17,6 +17,8 @@ import java.util.*;
 
 /**
  * 临时过渡，请使用Jackson
+ *
+ * @author zhzhl
  */
 @Deprecated
 public class JSONObject extends JSON implements Map<String, Object>, Cloneable, Serializable, InvocationHandler {
@@ -30,6 +32,7 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
     }
 
     public JSONObject(JsonNode jsonNode) {
+        //if 为了在 com.alibaba.fastjson.JSONObject.getJSONObject 中兼容string类型的数据
         if (jsonNode instanceof TextNode) {
             TextNode node = (TextNode) jsonNode;
             _objectNode = JacksonUtil.from(node.asText(), ObjectNode.class);
@@ -462,5 +465,16 @@ public class JSONObject extends JSON implements Map<String, Object>, Cloneable, 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         return null;
+    }
+
+    @Override
+    public JSONObject clone() {
+        try {
+            JSONObject clone = (JSONObject) super.clone();
+            // TODO: copy mutable state here, so the clone can't change the internals of the original
+            return clone;
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError();
+        }
     }
 }

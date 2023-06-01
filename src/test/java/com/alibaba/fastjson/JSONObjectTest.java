@@ -16,9 +16,11 @@ import java.util.Map;
  */
 public class JSONObjectTest {
     PageMetaDTO pageMetaDTO;
+    ObjectMapper objectMapper;
 
     @Before
     public void setUp() throws Exception {
+        objectMapper = new ObjectMapper();
 
         ArrayList<String> tabsValue = new ArrayList<String>();
         tabsValue.add("tabsValue-a");
@@ -73,6 +75,12 @@ public class JSONObjectTest {
         System.out.println(metaJson);
     }
 
+    @Test
+    public void testPageQueryInfo() throws JsonProcessingException {
+        String str = "{\"busiParamJson\":\"[{\\\"rqUrl\\\":\\\"/platform/templet/querypage.do\\\",\\\"rqJson\\\":\\\"{\\\\\\\"pagecode\\\\\\\":\\\\\\\"EPMP1010_main\\\\\\\",\\\\\\\"appcode\\\\\\\":\\\\\\\"EPMP1010\\\\\\\",\\\\\\\"sysParamJson\\\\\\\":\\\\{\\\\\\\"serviceCode\\\\\\\":\\\\\\\"EPMP1010\\\\\\\"\\\\},\\\\\\\"compareTs\\\\\\\":false}\\\",\\\"rqCode\\\":\\\"template\\\"},{\\\"rqUrl\\\":\\\"/platform/appregister/queryallbtns.do\\\",\\\"rqJson\\\":\\\"{\\\\\\\"pagecode\\\\\\\":\\\\\\\"EPMP1010_main\\\\\\\",\\\\\\\"appcode\\\\\\\":\\\\\\\"EPMP1010\\\\\\\",\\\\\\\"sysParamJson\\\\\\\":{\\\\\\\"serviceCode\\\\\\\":\\\\\\\"EPMP1010\\\\\\\"}}\\\",\\\"rqCode\\\":\\\"button\\\"},{\\\"rqUrl\\\":\\\"/platform/appregister/queryappcontext.do\\\",\\\"rqJson\\\":\\\"{\\\\\\\"appcode\\\\\\\":\\\\\\\"EPMP1010\\\\\\\",\\\\\\\"sysParamJson\\\\\\\":{\\\\\\\"serviceCode\\\\\\\":\\\\\\\"EPMP1010\\\\\\\"}}\\\",\\\"rqCode\\\":\\\"context\\\"}]\",\"sysParamJson\":{\"busiaction\":\"\",\"appcode\":\"EPMP1010\",\"tabid\":\"\",\"ts\":1685410812207,\"from\":\"\",\"pagecs\":1685410715389}}";
+        MergeRequestParam pageQueryInfo = objectMapper.readValue(str, MergeRequestParam.class);
+        System.out.println(pageQueryInfo);
+    }
 
     @Test
     public void size() {
