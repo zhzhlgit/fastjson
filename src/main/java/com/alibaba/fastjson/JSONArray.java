@@ -132,8 +132,19 @@ public class JSONArray extends JSON implements List<Object>, Cloneable, RandomAc
 
     @Override
     public boolean remove(Object o) {
-        // TODO: zhangzhliang@yonyou.com 2023/5/31 for循环删除
-        throw new RuntimeException("");
+        Iterator<JsonNode> iterator = _arrayNode.iterator();
+        while (iterator.hasNext()) {
+            JsonNode next = iterator.next();
+            boolean findFlag = o == null ?
+                    (next == null || next.isNull())
+                    : o.equals(next);
+            if (findFlag) {
+                iterator.remove();
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public JSONArray fluentRemove(Object o) {
@@ -170,6 +181,7 @@ public class JSONArray extends JSON implements List<Object>, Cloneable, RandomAc
 
     @Override
     public boolean removeAll(Collection<?> c) {
+
 // TODO: zhangzhliang@yonyou.com 2023/5/31
         throw new RuntimeException("");
     }
