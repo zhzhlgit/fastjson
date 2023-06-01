@@ -20,6 +20,7 @@ package com.alibaba.fastjson;
  *
  * @author wenshao[szujobs@hotmail.com]
  */
+@Deprecated
 public interface JSONAware {
 
     /**

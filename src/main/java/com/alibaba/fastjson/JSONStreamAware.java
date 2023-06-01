@@ -22,6 +22,7 @@ import java.io.IOException;
  *
  * @author wenshao[szujobs@hotmail.com]
  */
+@Deprecated
 public interface JSONStreamAware {
 
     /**
